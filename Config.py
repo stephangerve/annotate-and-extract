@@ -9,7 +9,12 @@ temp_ss_path = "C:\\Users\\Stephan\\Downloads\\Old Screenshots\\Temp"
 old_ss_path = "C:\\Users\\Stephan\\Downloads\\Old Screenshots"
 e_packs_dir = "C:\\Users\\Stephan\\OneDrive\\Exercise Packs"
 
+HOSTNAME = "localhost"
+USERNAME = "root"
+DATABASENAME = "ls_data"
+
 open_txtbk_dir = False
+open_txtbk = False
 continue_from_last_ss_index = False
 start_from_specific_worksheet = False
 DEFAULT_FIRST_IMAGE_INDEX = 1
@@ -49,11 +54,12 @@ BBOX_COLOR = {
 COLUMN_LEFT = -0.1
 COLUMN_RIGHT = 0.1
 
+
 IMAGE_TYPE = "Exercises"
 #IMAGE_TYPE = "Solutions"
 #####################################################
-category = "Linear Algebra"
-author = "Boyd"
-textbook = "Introduction to Applied Linear Algebra"
-edition = "1st"
+category = "Calculus"
+author = "Rogawski"
+textbook = "Calculus"
+edition = "2nd"
 #Leon-Garcia - Probability, Statistics, and Random Processes for EE - 3rd

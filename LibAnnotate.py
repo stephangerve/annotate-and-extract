@@ -33,12 +33,12 @@ def annotateOneColumn(command, one_column_boundary_set, two_columns_boundary_set
 
     condition, image_w_outer_boundary, outer_boundary, one_column_boundary_set, two_columns_boundary_set = drawOuterBoundary(image_w_border, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary)
     if condition:
-        condition, _, _, bboxes, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_outer_boundary, outer_boundary, command, [], current_image_index, {}, header, None)
+        condition, _, _, bboxes, masks, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_outer_boundary, outer_boundary, command, [], [], current_image_index, {}, header, None)
     else:
         cv2.destroyAllWindows()
-        return False, None, None, None, current_image_index, header
+        return False, None, None, None, None, current_image_index, header
     cv2.destroyAllWindows()
-    return condition, orig_image, bboxes, annotations, last_image_index, header
+    return condition, orig_image, bboxes, masks, annotations, last_image_index, header
 
 
 
@@ -72,25 +72,26 @@ def annotateTwoColumns(command, one_column_boundary_set, two_columns_boundary_se
         condition, image_w_column_line, boundary_left_column, boundary_right_column = drawColumnLine(image_w_outer_boundary, outer_boundary)
     else:
         cv2.destroyAllWindows()
-        return False, None, None, None, current_image_index, header
+        return False, None, None, None, None, current_image_index, header
     if condition:
         annotations = {}
         bboxes = []
+        masks = []
         last_image_index = current_image_index
         annotate_mode = command
         while True:
-            condition, image_w_bboxes, annotate_mode, bboxes_left, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_column_line.copy(), boundary_left_column, annotate_mode, bboxes, last_image_index, annotations, header, COLUMN_LEFT)
+            condition, image_w_bboxes, annotate_mode, bboxes_left, masks_left, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_column_line.copy(), boundary_left_column, annotate_mode, bboxes, masks, last_image_index, annotations, header, COLUMN_LEFT)
             if condition:
-                condition, _, annotate_mode, bboxes, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_bboxes, boundary_right_column, annotate_mode, bboxes_left, last_image_index, annotations, header, COLUMN_RIGHT)
+                condition, _, annotate_mode, bboxes, masks, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_bboxes, boundary_right_column, annotate_mode, bboxes_left, masks_left, last_image_index, annotations, header, COLUMN_RIGHT)
             else:
                 cv2.destroyAllWindows()
-                return False, None, None, None, current_image_index, header
+                return False, None, None, None, None, current_image_index, header
             if condition:
                 cv2.destroyAllWindows()
-                return True, orig_image, bboxes, annotations, last_image_index, header
+                return True, orig_image, bboxes, masks, annotations, last_image_index, header
     else:
         cv2.destroyAllWindows()
-        return False, None, None, None, current_image_index, header
+        return False, None, None, None, None, current_image_index, header
 
 
 

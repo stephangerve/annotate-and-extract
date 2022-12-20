@@ -3,6 +3,7 @@ import time
 import keyboard
 import random
 import string
+import numpy as np
 #from LibDrawingCoordinates import *
 from Config import *
 
@@ -23,8 +24,11 @@ two_columns_boundary_set = False
 last_annotate_mode = None
 last_color = None
 label_ready = False
+mask_x_offset = 20
+mask_y_offset = 20
 
 bboxes = {}
+masks = {}
 screenshots = []
 
 
@@ -34,16 +38,17 @@ annotations = {}
 #operation
 #grid
 
-def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_index, last_annotations, last_header, column_pos=None):
+def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, last_image_index, last_annotations, last_header, column_pos=None):
     global drawing_bbox
     global drawing
     global last_annotate_mode, last_color
-    global bboxes, header
+    global bboxes, masks, header
     global x_start, y_start, x_end, y_end
     global label_x_start, label_y_start, label_x_end, label_y_end
     global current_image_index
     global label_ready
     global annotations
+    global mask_x_offset, mask_y_offset
     orig_image_w_outer_boundary = image.copy()
     grid_ordering = "horizontal"
     drawing = True
@@ -61,11 +66,22 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
             addAnnotation(code=code, shape=SHAPE_LINE, operation=None, column_pos=column_pos, index=None)
     else:
         bboxes = {}
+    if len(prev_masks) > 0:
+        masks = prev_masks
+    else:
+        masks = {}
     if len(annotations) != 0:
         for key, bbox in zip(bboxes.keys(), bboxes.values()):
             if annotations[key]["shape"] != SHAPE_LINE:
                 color = BBOX_COLOR[annotations[key]["operation"]]
                 cv2.rectangle(image, bbox[0], bbox[1], color, 2)
+                if annotations[key]["operation"] in [OP_SIMPLE, OP_COMBINE_W_H]:
+                    mask = masks[key]
+                    im_region = image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
+                    white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                    masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                    image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
+                    cv2.rectangle(image, mask[0], mask[1], color, 1)
                 x_0, y_0, x_1, y_1 = bbox[0][0], bbox[0][1], bbox[0][0], bbox[0][1]
                 label_x_start, label_y_start, label_x_end, label_y_end = x_0 - 28, y_0, x_1 - 2, y_1 + 20
                 cv2.rectangle(image, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
@@ -119,6 +135,20 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
                     label_str = str(current_image_index).zfill(3)
                     font_size = 0.40
                 cv2.putText(image_w_new_bbox, label_str, (label_x_start + 2, label_y_start + 14), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 255, 255), 1, cv2.LINE_AA)
+                if annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
+                    mask_x_start, mask_y_start, mask_x_end, mask_y_end = x_start, y_start, x_start + mask_x_offset, y_start + mask_y_offset
+                    if mask_y_end >= y_end:
+                        im_region = image_w_new_bbox[mask_y_start:y_end, mask_x_start:mask_x_end]
+                        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                        image_w_new_bbox[mask_y_start:y_end, mask_x_start:mask_x_end] = masked_reg
+                        cv2.rectangle(image_w_new_bbox, (mask_x_start, mask_y_start), (mask_x_end, y_end), color, 1)
+                    else:
+                        im_region = image_w_new_bbox[mask_y_start:mask_y_end, mask_x_start:mask_x_end]
+                        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                        image_w_new_bbox[mask_y_start:mask_y_end, mask_x_start:mask_x_end] = masked_reg
+                        cv2.rectangle(image_w_new_bbox, (mask_x_start, mask_y_start), (mask_x_end, mask_y_end), color, 1)
             cv2.imshow("image", image_w_new_bbox)
             cv2.waitKey(1)
         else:
@@ -156,6 +186,10 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
             if annotate_mode == OP_SIMPLE:
                 code = generateCode()
                 bboxes[code] = [(x_start, y_start), (x_end, y_end)]
+                if mask_y_end >= y_end:
+                    masks[code] = [(mask_x_start, mask_y_start), (mask_x_end, y_end)]
+                else:
+                    masks[code] = [(mask_x_start, mask_y_start), (mask_x_end, mask_y_end)]
                 addAnnotation(code=code, shape=SHAPE_BBOX, operation=OP_SIMPLE, column_pos=column_pos, index=current_image_index)
                 if odds_only:
                     current_image_index += 2
@@ -179,6 +213,10 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
             elif annotate_mode == OP_COMBINE_W_H:
                 code = generateCode()
                 bboxes[code] = [(x_start, y_start), (x_end, y_end)]
+                if mask_y_end >= y_end:
+                    masks[code] = [(mask_x_start, mask_y_start), (mask_x_end, y_end)]
+                else:
+                    masks[code] = [(mask_x_start, mask_y_start), (mask_x_end, mask_y_end)]
                 addAnnotation(code=code, shape=SHAPE_BBOX, operation=OP_COMBINE_W_H, column_pos=column_pos, index=current_image_index, header=header)
                 if odds_only:
                     current_image_index += 2
@@ -315,13 +353,25 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
         elif keyboard.is_pressed('ctrl+shift+alt+z'):
             while keyboard.is_pressed('ctrl+shift+alt+z'):
                 continue
+        elif keyboard.is_pressed('ctrl+shift+alt+C'):
+            if mask_x_end - 1 > x_start:
+                mask_x_offset -= 1
+        elif keyboard.is_pressed('ctrl+shift+alt+G'):
+            if mask_x_end + 1 < x_end:
+                mask_x_offset += 1
+        elif keyboard.is_pressed('ctrl+shift+alt+E'):
+            if mask_y_end - 1 > y_start:
+                mask_y_offset -= 1
+        elif keyboard.is_pressed('ctrl+shift+alt+F'):
+            if mask_y_end + 1 < y_end:
+                mask_y_offset += 1
         elif keyboard.is_pressed('esc'):
             while keyboard.is_pressed('esc'):
                 continue
             if len(bboxes) == 0:
                 drawing = False
                 print("Canceled.")
-                return False, None, None, None, annotations, last_image_index, header
+                return False, None, None, None, None, annotations, last_image_index, header
             else:
                 undo_code = list(annotations.keys())[-1]
                 undo_annotation = annotations.pop(undo_code)
@@ -334,12 +384,13 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
                     if len(annotations) > 0 \
                     and annotations[list(annotations.keys())[-1]]["column_pos"] != column_pos \
                     and column_pos in [COLUMN_LEFT, COLUMN_RIGHT]:
-                        return False, None, undo_annotation["operation"], bboxes, annotations, undo_annotation["index"], header
+                        return False, None, undo_annotation["operation"], bboxes, masks, annotations, undo_annotation["index"], header
                 if undo_annotation["operation"] in [OP_SIMPLE, OP_APP_TO_LAST, OP_COMBINE_W_H]:
                     if undo_annotation["grid"] is True:
                         for key in reversed(list(annotations.keys())):
                             if annotations[key]["grid"] == True:
                                 bboxes.pop(list(bboxes.keys())[-1])
+                                masks.pop(list(bboxes.keys())[-1])
                                 current_image_index = annotations.pop(key)["index"]
                             else:
                                 annotations.pop(list(annotations.keys())[-1])
@@ -358,6 +409,13 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
                     if annotations[key]["shape"] != SHAPE_LINE:
                         color = BBOX_COLOR[annotations[key]["operation"]]
                         cv2.rectangle(image, bbox[0], bbox[1], color, 2)
+                        if annotations[key]["operation"] in [OP_SIMPLE, OP_COMBINE_W_H]:
+                            mask = masks[key]
+                            im_region = image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
+                            white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                            masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                            image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
+                            cv2.rectangle(image, mask[0], mask[1], color, 1)
                         x_0, y_0, x_1, y_1 = bbox[0][0], bbox[0][1], bbox[0][0], bbox[0][1]
                         label_x_start, label_y_start, label_x_end, label_y_end = x_0 - 28, y_0, x_1 - 2, y_1 + 20
                         cv2.rectangle(image, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
@@ -373,7 +431,7 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, last_image_ind
                 x_start, y_start, x_end, y_end = 0, 0, 0, 0
                 label_x_start, label_y_start, label_x_end, label_y_end = 0, 0, 0, 0
                 cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
-    return True, image_w_new_bbox, annotate_mode, bboxes, annotations, current_image_index, header
+    return True, image_w_new_bbox, annotate_mode, bboxes, masks, annotations, current_image_index, header
 
 
 def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=None):
@@ -381,10 +439,12 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
     global drawing_boundary, drawing_subcolumns, drawing, drawing_sc_rows
     global x_start, y_start, x_end, y_end
     global bboxes
+    global masks
     global current_image_index
     global annotations
     global label_ready
     global header
+    global mask_x_offset
     temp_bboxes = {}
     old_image_index = current_image_index
     cv2.setMouseCallback("image", setSubcolumnsCoordiates, [boundary])
@@ -406,6 +466,17 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
         cv2.putText(image_w_subcolumns, "GRID", (l_x_0 + 2, l_y_0 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.30, (255, 255, 255), 1, cv2.LINE_AA)
         cv2.rectangle(image_w_subcolumns, temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center), color, 1)
         cv2.line(image_w_subcolumns, (sc_x_center, sc_y_center), (sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), color, 1)
+
+        mask_x_start, mask_x_end = x_start, x_start + mask_x_offset
+        im_region_left = image_w_subcolumns[y_start:sc_y_center, mask_x_start:mask_x_end]
+        im_region_right = image_w_subcolumns[y_start:sc_y_center, sc_x_center:sc_x_center + mask_x_offset]
+        white_rect = np.ones(im_region_left.shape, dtype=np.uint8) * 150
+        masked_reg_left = cv2.addWeighted(im_region_left, 0.5, white_rect, 0.5, 1.0)
+        masked_reg_right = cv2.addWeighted(im_region_right, 0.5, white_rect, 0.5, 1.0)
+        image_w_subcolumns[y_start:sc_y_center, mask_x_start:mask_x_end] = masked_reg_left
+        image_w_subcolumns[y_start:sc_y_center, sc_x_center:sc_x_center + mask_x_offset] = masked_reg_right
+        cv2.rectangle(image_w_subcolumns, (mask_x_start, y_start), (mask_x_end, sc_y_center), color, 1)
+        cv2.rectangle(image_w_subcolumns, (sc_x_center, y_start), (sc_x_center + mask_x_offset, sc_y_center), color, 1)
         cv2.imshow("image", image_w_subcolumns)
         cv2.waitKey(1)
 
@@ -415,7 +486,12 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
         elif keyboard.is_pressed('ctrl+shift+alt+4'):
             time.sleep(0.01)
             annotate_mode = OP_COMBINE_W_H
-
+        elif keyboard.is_pressed('ctrl+shift+alt+C'):
+            if mask_x_end - 1 > x_start:
+                mask_x_offset -= 1
+        elif keyboard.is_pressed('ctrl+shift+alt+G'):
+            if mask_x_end + 1 < sc_x_center:
+                mask_x_offset += 1
         if keyboard.is_pressed('esc'):
             time.sleep(0.5)
             current_image_index = old_image_index
@@ -470,6 +546,7 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
         temp_bbox = list(temp_bboxes.values())[i]
         temp_bbox = list(temp_bboxes.values())[i]
         bboxes[key] = temp_bbox
+        masks[key] = [(mask_x_start, temp_bbox[0][1]), (mask_x_end, temp_bbox[1][1])]
         if i != 0:
             if grid_ordering == "horizontal":
                 addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=current_image_index, grid=True, header=grid_header)
