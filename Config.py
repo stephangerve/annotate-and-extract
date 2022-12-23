@@ -12,6 +12,7 @@ e_packs_dir = "C:\\Users\\Stephan\\OneDrive\\Exercise Packs"
 HOSTNAME = "localhost"
 USERNAME = "root"
 DATABASENAME = "ls_data"
+PASSWORD = ""
 
 open_txtbk_dir = False
 open_txtbk = False
@@ -58,8 +59,54 @@ COLUMN_RIGHT = 0.1
 IMAGE_TYPE = "Exercises"
 #IMAGE_TYPE = "Solutions"
 #####################################################
-category = "Calculus"
-author = "Rogawski"
-textbook = "Calculus"
-edition = "2nd"
-#Leon-Garcia - Probability, Statistics, and Random Processes for EE - 3rd
+# category = "Calculus"
+# author = "Stewart"
+# textbook = "Calculus"
+# edition = "8th"
+
+# category = "Calculus"
+# author = "Salas"
+# textbook = "Calculus"
+# edition = "10th"
+
+# category = "Calculus"
+# author = "Adams"
+# textbook = "Calculus"
+# edition = "9th"
+
+# category = "Calculus"
+# author = "Anton"
+# textbook = "Calculus Early Transcendentals"
+# edition = "1st"
+
+# category = "Calculus"
+# author = "Hughes-Hallet"
+# textbook = "Calculus"
+# edition = "6th"
+
+# category = "Algorithms and Data Structures"
+# author = "Cormen"
+# textbook = "Introduction to Algorithms"
+# edition = "4th"
+
+category = "Discrete Mathematics"
+author = "Rosen"
+textbook = "Discrete Mathematics and Its Applications"
+edition = "7th"
+
+# Probability
+# Discrete Math
+# Algorithms
+# Calculus
+# Combinatorics
+# Graph Theory
+# Number Theory
+# Sums/ Recurrence Relations
+# Precalculus
+# DSP
+# Signals and Systems
+# Time Series
+# Stat. SP
+# Linear Algebra
+# Information Theory
+

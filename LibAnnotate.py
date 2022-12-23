@@ -31,7 +31,7 @@ def annotateOneColumn(command, one_column_boundary_set, two_columns_boundary_set
     screen = screeninfo.get_monitors()[0]
     cv2.moveWindow("image", screen.x - 1, screen.y - 1)
 
-    condition, image_w_outer_boundary, outer_boundary, one_column_boundary_set, two_columns_boundary_set = drawOuterBoundary(image_w_border, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary)
+    condition, image_w_outer_boundary, outer_boundary, one_column_boundary_set, two_columns_boundary_set = drawOuterBoundary(image_w_border, command, header, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary)
     if condition:
         condition, _, _, bboxes, masks, annotations, last_image_index, header = drawBBoxes(orig_image, image_w_outer_boundary, outer_boundary, command, [], [], current_image_index, {}, header, None)
     else:
@@ -67,7 +67,7 @@ def annotateTwoColumns(command, one_column_boundary_set, two_columns_boundary_se
     screen = screeninfo.get_monitors()[0]
     cv2.moveWindow("image", screen.x - 1, screen.y - 1)
 
-    condition, image_w_outer_boundary, outer_boundary, one_column_boundary_set, two_columns_boundary_set = drawOuterBoundary(image_w_border, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary)
+    condition, image_w_outer_boundary, outer_boundary, one_column_boundary_set, two_columns_boundary_set = drawOuterBoundary(image_w_border, command, header, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary)
     if condition:
         condition, image_w_column_line, boundary_left_column, boundary_right_column = drawColumnLine(image_w_outer_boundary, outer_boundary)
     else:

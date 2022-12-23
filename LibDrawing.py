@@ -7,6 +7,7 @@ import numpy as np
 #from LibDrawingCoordinates import *
 from Config import *
 
+x_cursor, y_cursor = 0, 0
 x_start, y_start, x_end, y_end = 0, 0, 0, 0
 label_x_start, label_y_start, label_x_end, label_y_end = 0, 0, 0, 0
 sc_x_center, sc_y_center = 0, 0
@@ -26,6 +27,7 @@ last_color = None
 label_ready = False
 mask_x_offset = 20
 mask_y_offset = 20
+drawing_mask = False
 
 bboxes = {}
 masks = {}
@@ -77,11 +79,19 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
                 cv2.rectangle(image, bbox[0], bbox[1], color, 2)
                 if annotations[key]["operation"] in [OP_SIMPLE, OP_COMBINE_W_H]:
                     mask = masks[key]
-                    im_region = image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
-                    white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
-                    masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
-                    image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
-                    cv2.rectangle(image, mask[0], mask[1], color, 1)
+                    if annotations[key]["grid"]:
+                        mask_width = (mask[1][0] - mask[0][0])
+                        im_region = image[mask[0][1]:mask[1][1], bbox[0][0]:bbox[0][0] + mask_width]
+                        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                        image[mask[0][1]:mask[1][1], bbox[0][0]:bbox[0][0] + mask_width] = masked_reg
+                        cv2.rectangle(image, (bbox[0][0], mask[0][1]), (bbox[0][0] + mask_width, mask[1][1]), color, 1)
+                    else:
+                        im_region = image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
+                        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                        image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
+                        cv2.rectangle(image, mask[0], mask[1], color, 1)
                 x_0, y_0, x_1, y_1 = bbox[0][0], bbox[0][1], bbox[0][0], bbox[0][1]
                 label_x_start, label_y_start, label_x_end, label_y_end = x_0 - 28, y_0, x_1 - 2, y_1 + 20
                 cv2.rectangle(image, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
@@ -353,18 +363,18 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
         elif keyboard.is_pressed('ctrl+shift+alt+z'):
             while keyboard.is_pressed('ctrl+shift+alt+z'):
                 continue
-        elif keyboard.is_pressed('ctrl+shift+alt+C'):
-            if mask_x_end - 1 > x_start:
-                mask_x_offset -= 1
-        elif keyboard.is_pressed('ctrl+shift+alt+G'):
-            if mask_x_end + 1 < x_end:
-                mask_x_offset += 1
-        elif keyboard.is_pressed('ctrl+shift+alt+E'):
-            if mask_y_end - 1 > y_start:
-                mask_y_offset -= 1
-        elif keyboard.is_pressed('ctrl+shift+alt+F'):
-            if mask_y_end + 1 < y_end:
-                mask_y_offset += 1
+        # elif keyboard.is_pressed('ctrl+shift+alt+C'):
+        #     if mask_x_end - 1 > x_start:
+        #         mask_x_offset -= 1
+        # elif keyboard.is_pressed('ctrl+shift+alt+G'):
+        #     if mask_x_end + 1 < x_end:
+        #         mask_x_offset += 1
+        # elif keyboard.is_pressed('ctrl+shift+alt+E'):
+        #     if mask_y_end - 1 > y_start:
+        #         mask_y_offset -= 1
+        # elif keyboard.is_pressed('ctrl+shift+alt+F'):
+        #     if mask_y_end + 1 < y_end:
+        #         mask_y_offset += 1
         elif keyboard.is_pressed('esc'):
             while keyboard.is_pressed('esc'):
                 continue
@@ -411,11 +421,19 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
                         cv2.rectangle(image, bbox[0], bbox[1], color, 2)
                         if annotations[key]["operation"] in [OP_SIMPLE, OP_COMBINE_W_H]:
                             mask = masks[key]
-                            im_region = image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
-                            white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
-                            masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
-                            image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
-                            cv2.rectangle(image, mask[0], mask[1], color, 1)
+                            if annotations[key]["grid"]:
+                                mask_width = (mask[1][0] - mask[0][0])
+                                im_region = image[mask[0][1]:mask[1][1], bbox[0][0]:bbox[0][0] + mask_width]
+                                white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                                masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                                image[mask[0][1]:mask[1][1], bbox[0][0]:bbox[0][0] + mask_width] = masked_reg
+                                cv2.rectangle(image, (bbox[0][0], mask[0][1]), (bbox[0][0] + mask_width, mask[1][1]), color, 1)
+                            else:
+                                im_region = image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
+                                white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                                masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                                image[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
+                                cv2.rectangle(image, mask[0], mask[1], color, 1)
                         x_0, y_0, x_1, y_1 = bbox[0][0], bbox[0][1], bbox[0][0], bbox[0][1]
                         label_x_start, label_y_start, label_x_end, label_y_end = x_0 - 28, y_0, x_1 - 2, y_1 + 20
                         cv2.rectangle(image, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
@@ -486,12 +504,12 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
         elif keyboard.is_pressed('ctrl+shift+alt+4'):
             time.sleep(0.01)
             annotate_mode = OP_COMBINE_W_H
-        elif keyboard.is_pressed('ctrl+shift+alt+C'):
-            if mask_x_end - 1 > x_start:
-                mask_x_offset -= 1
-        elif keyboard.is_pressed('ctrl+shift+alt+G'):
-            if mask_x_end + 1 < sc_x_center:
-                mask_x_offset += 1
+        # elif keyboard.is_pressed('ctrl+shift+alt+C'):
+        #     if mask_x_end - 1 > x_start:
+        #         mask_x_offset -= 1
+        # elif keyboard.is_pressed('ctrl+shift+alt+G'):
+        #     if mask_x_end + 1 < sc_x_center:
+        #         mask_x_offset += 1
         if keyboard.is_pressed('esc'):
             time.sleep(0.5)
             current_image_index = old_image_index
@@ -585,7 +603,7 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
     label_ready = False
     return True, image_w_subcolumns, [boundary[0], (boundary[1][0], sc_y_center)], annotate_mode  # outer_boundary already global
 
-def drawOuterBoundary(image, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary):
+def drawOuterBoundary(image, command, last_header, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary):
     global x_start, y_start, x_end, y_end
     global label_x_start, label_y_start, label_x_end, label_y_end
     global drawing_boundary, drawing
@@ -605,17 +623,73 @@ def drawOuterBoundary(image, one_column_boundary_set, two_columns_boundary_set, 
         cv2.waitKey(1)
         drawing = True
     else:
+        if command not in STANDARD_OPs:
+            annotate_mode = OP_SIMPLE
+        elif command == OP_APP_TO_LAST and len(os.listdir(temp_ss_path)) == 0:
+            annotate_mode = OP_SIMPLE
+        elif command == OP_APP_TO_LAST and len(os.listdir(temp_ss_path)) > 0:
+            annotate_mode = OP_APP_TO_LAST
+        elif command == OP_COMBINE_W_H and len(last_header) == 0:
+            annotate_mode = OP_SIMPLE
+        else:
+            annotate_mode = command
         cv2.setMouseCallback("image", setOuterBoundaryCoordiates, [])
+        image_w_mask = image.copy()
+        im_region = image_w_mask[0:image.shape[0], 0:image.shape[1]]
+        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 40
+        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+        image_w_mask[0:image.shape[0], 0:image.shape[1]] = masked_reg
         while True:
-            image_w_outer_boundary = image.copy()
+            if annotate_mode in BBOX_COLOR.keys():
+                color = BBOX_COLOR[annotate_mode]
+            else:
+                color = RED
+            image_w_outer_boundary = image_w_mask.copy()
+            cv2.line(image_w_outer_boundary, (x_cursor, 0), (x_cursor, image.shape[0]), color, 1)
+            cv2.line(image_w_outer_boundary, (0, y_cursor), (image.shape[1], y_cursor), color, 1)
             if drawing_boundary is True:
+                image_wo_mask = image.copy()
+                unmasked_reg = image_wo_mask[y_start:y_end, x_start:x_end]
+                image_w_outer_boundary[y_start:y_end, x_start:x_end] = unmasked_reg
                 cv2.rectangle(image_w_outer_boundary, (x_start, y_start), (x_end, y_end), NEON_GREEN, 1)
             cv2.imshow("image", image_w_outer_boundary)
             cv2.waitKey(1)
 
             if drawing_boundary is False and drawing == True:
                 break
-
+            if keyboard.is_pressed('ctrl+shift+alt+1'):
+                time.sleep(0.01)
+                if annotate_mode != OP_SIMPLE:
+                    annotate_mode = OP_SIMPLE
+            elif keyboard.is_pressed('ctrl+shift+alt+2'):
+                time.sleep(0.01)
+                if annotate_mode != OP_APP_TO_LAST:
+                    if len(os.listdir(temp_ss_path)) == 0 and len(bboxes) == 0:
+                        annotate_mode = OP_SIMPLE
+                    else:
+                        annotate_mode = OP_APP_TO_LAST
+            elif keyboard.is_pressed('ctrl+shift+alt+3'):
+                time.sleep(0.01)
+                if annotate_mode != OP_SET_HEADER:
+                    annotate_mode = OP_SET_HEADER
+            elif keyboard.is_pressed('ctrl+shift+alt+4'):
+                time.sleep(0.01)
+                if annotate_mode != OP_COMBINE_W_H:
+                    if len(header) == 0:
+                        annotate_mode = OP_SIMPLE
+                    else:
+                        annotate_mode = OP_COMBINE_W_H
+            elif keyboard.is_pressed('ctrl+shift+alt+5'):
+                time.sleep(0.01)
+                if annotate_mode != OP_APP_TO_HEAD:
+                    if len(header) == 0:
+                        annotate_mode = OP_SIMPLE
+                    else:
+                        annotate_mode = OP_APP_TO_HEAD
+            elif keyboard.is_pressed('ctrl+shift+alt+6'):
+                time.sleep(0.01)
+                if annotate_mode != OP_GRID_MODE:
+                    annotate_mode = OP_GRID_MODE
             if keyboard.is_pressed('esc'):
                 time.sleep(0.01)
                 drawing = False
@@ -626,7 +700,10 @@ def drawOuterBoundary(image, one_column_boundary_set, two_columns_boundary_set, 
                 #two_columns_boundary_set = False
                 print("Canceled.")
                 return False, None, None, None, None
-        image_w_outer_boundary = image.copy()
+        image_w_outer_boundary = image_w_mask.copy()
+        image_wo_mask = image.copy()
+        unmasked_reg = image_wo_mask[y_start:y_end, x_start:x_end]
+        image_w_outer_boundary[y_start:y_end, x_start:x_end] = unmasked_reg
         cv2.rectangle(image_w_outer_boundary, (x_start, y_start), (x_end, y_end), NEON_GREEN, 2)
         cv2.imshow("image", image_w_outer_boundary)
         cv2.waitKey(1)
@@ -709,6 +786,8 @@ def setSCRowsCoordiates(event, x, y, flags, param):
 def setSubcolumnsCoordiates(event, x, y, flags, param):
     global drawing_subcolumns
     global sc_x_center, sc_y_center
+    global mask_x_offset, mask_y_offset
+    global drawing_mask
     boundary = param[0]
     if x > boundary[1][0]:
         sc_x_center = boundary[1][0]
@@ -724,6 +803,13 @@ def setSubcolumnsCoordiates(event, x, y, flags, param):
         sc_y_center = y
     if event == cv2.EVENT_LBUTTONUP:
         drawing_subcolumns = False
+
+    if event == cv2.EVENT_RBUTTONDOWN:
+        drawing_mask = True
+    elif event == cv2.EVENT_MOUSEMOVE and drawing_mask == True:
+        mask_x_offset = x - x_start
+    elif event == cv2.EVENT_RBUTTONUP and drawing_mask == True:
+        drawing_mask = False
 
 
 
@@ -750,7 +836,9 @@ def setOuterBoundaryCoordiates(event, x, y, flags, param):
     global outer_boundary
     global x_start, y_start, x_end, y_end
     global label_x_start, label_y_start, label_x_end, label_y_end
+    global x_cursor, y_cursor
     global label_ready
+    x_cursor, y_cursor = x, y
     if event == cv2.EVENT_MOUSEMOVE and drawing == False:
         label_x_start, label_y_start, label_x_end, label_y_end = x - 31, y + 20, x - 5, y + 5
     if event == cv2.EVENT_LBUTTONDOWN and drawing == False:
@@ -782,6 +870,8 @@ def setBBOXCoordiates(event, x, y, flags, param):
     global x_start, y_start, x_end, y_end
     global label_x_start, label_y_start, label_x_end, label_y_end
     global label_ready
+    global mask_x_offset, mask_y_offset
+    global drawing_mask
     boundary = param[0]
     if drawing_bbox and drawing:
         if len(bboxes) == 0:
@@ -805,6 +895,13 @@ def setBBOXCoordiates(event, x, y, flags, param):
         drawing_bbox = False
         if y_end >= boundary[1][1]:
             drawing = False
+    if event == cv2.EVENT_RBUTTONDOWN:
+        drawing_mask = True
+    elif event == cv2.EVENT_MOUSEMOVE and drawing_mask == True:
+        mask_x_offset, mask_y_offset = x - x_start, y - y_start
+    elif event == cv2.EVENT_RBUTTONUP and drawing_mask == True:
+        drawing_mask = False
+
 
 
 def generateCode():

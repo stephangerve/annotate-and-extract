@@ -22,7 +22,7 @@ if __name__ == "__main__":
             host=HOSTNAME,
             user=USERNAME,
             database=DATABASENAME,
-            password=""
+            password=PASSWORD
         )
         cursor = cnx.cursor()
         break
@@ -129,26 +129,26 @@ if __name__ == "__main__":
             condition, image, bboxes, masks, annotations, current_image_index, header = annotateTwoColumns(7, one_column_boundary_set, two_columns_boundary_set, current_image_index, header, outer_boundary)
             if condition:
                 processImageWithBBoxes(image, bboxes, masks, annotations, sets_list[current_set_index])
-        elif keyboard.is_pressed('ctrl+shift+alt+A'):
-            time.sleep(0.01)
-            if one_column_boundary_set:
-                one_column_boundary_set = False
-                outer_boundary = None
-                print("Outer Boundary reset.")
-            else:
-                condition, outer_boundary, one_column_boundary_set, two_columns_boundary_set = setOneColumn()
-                if condition is True:
-                    one_column_boundary_set = True
-                    two_columns_boundary_set = False
-        elif keyboard.is_pressed('ctrl+shift+alt+B'):
-            time.sleep(0.01)
-            if two_columns_boundary_set:
-                two_columns_boundary_set = False
-            else:
-                condition, one_column_boundary_set, two_columns_boundary_set = setTwoColumns()
-                if condition is True:
-                    two_columns_boundary_set = True
-                    one_column_boundary_set = False
+        # elif keyboard.is_pressed('ctrl+shift+alt+A'):
+        #     time.sleep(0.01)
+        #     if one_column_boundary_set:
+        #         one_column_boundary_set = False
+        #         outer_boundary = None
+        #         print("Outer Boundary reset.")
+        #     else:
+        #         condition, outer_boundary, one_column_boundary_set, two_columns_boundary_set = setOneColumn()
+        #         if condition is True:
+        #             one_column_boundary_set = True
+        #             two_columns_boundary_set = False
+        # elif keyboard.is_pressed('ctrl+shift+alt+B'):
+        #     time.sleep(0.01)
+        #     if two_columns_boundary_set:
+        #         two_columns_boundary_set = False
+        #     else:
+        #         condition, one_column_boundary_set, two_columns_boundary_set = setTwoColumns()
+        #         if condition is True:
+        #             two_columns_boundary_set = True
+        #             one_column_boundary_set = False
         elif keyboard.is_pressed('ctrl+shift+alt+z'):
             time.sleep(0.01)
             current_image_index, current_set_index, header = resetImageList(sets_list, current_set_index, cursor, cnx, textbookid)
