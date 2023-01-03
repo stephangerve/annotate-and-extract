@@ -55,24 +55,19 @@ BBOX_COLOR = {
 COLUMN_LEFT = -0.1
 COLUMN_RIGHT = 0.1
 
-
+# NUM_WHT_SPACE = 4
 IMAGE_TYPE = "Exercises"
 #IMAGE_TYPE = "Solutions"
 #####################################################
-# category = "Calculus"
-# author = "Stewart"
-# textbook = "Calculus"
-# edition = "8th"
+category = "Calculus"
+author = "Salas"
+textbook = "Calculus"
+edition = "10th"
 
-# category = "Calculus"
-# author = "Salas"
-# textbook = "Calculus"
-# edition = "10th"
-
-# category = "Calculus"
-# author = "Adams"
-# textbook = "Calculus"
-# edition = "9th"
+# category = "Probability, Statistics, and Random Processes"
+# author = "Ramachandran"
+# textbook = "Mathematical Statistics With Applications in R"
+# edition = "1st"
 
 # category = "Calculus"
 # author = "Anton"
@@ -80,28 +75,43 @@ IMAGE_TYPE = "Exercises"
 # edition = "1st"
 
 # category = "Calculus"
-# author = "Hughes-Hallet"
-# textbook = "Calculus"
-# edition = "6th"
+# author = "Sullivan"
+# textbook = "Calculus Early Transcendentals"
+# edition = "1st"
 
 # category = "Algorithms and Data Structures"
 # author = "Cormen"
 # textbook = "Introduction to Algorithms"
 # edition = "4th"
 
-category = "Discrete Mathematics"
-author = "Rosen"
-textbook = "Discrete Mathematics and Its Applications"
-edition = "7th"
+# category = "Discrete Mathematics"
+# author = "Conradie"
+# textbook = "Logic and Discrete Mathematics"
+# edition = "1st"
+
+# category = "Discrete Mathematics"
+# author = "Jongsma"
+# textbook = "Introduction to Discrete Mathematics Via Logic and Proof"
+# edition = "1st"
+
+# category = "Algorithms and Data Structures"
+# author = "Levitin"
+# textbook = "Introduction to the Design and Analysis of Algorithms"
+# edition = "3rd"
+
+# category = "Topics in Mathematics"
+# author = "Elaydi"
+# textbook = "An Introduction to Difference Equations"
+# edition = "3rd"
+
+# category = "Topics in Mathematics"
+# author = "Paulsen"
+# textbook = "Asymptotic Analysis and Perturbation Theory"
+# edition = "1st"
+
 
 # Probability
-# Discrete Math
-# Algorithms
 # Calculus
-# Combinatorics
-# Graph Theory
-# Number Theory
-# Sums/ Recurrence Relations
 # Precalculus
 # DSP
 # Signals and Systems
@@ -110,3 +120,88 @@ edition = "7th"
 # Linear Algebra
 # Information Theory
 
+# category = "Discrete Mathematics"
+# author = "Graham"
+# textbook = "Concrete Mathematics"
+# edition = "2nd"
+
+# category = "Algorithms and Data Structures"
+# author = "Goodrich"
+# textbook = "Algorithm Design and Applications"
+# edition = "1st"
+
+# category = "Graph Theory"
+# author = "Chartrand"
+# textbook = "Graphs and Digraphs"
+# edition = "6th"
+
+# category = "Calculus"
+# author = "Hughes-Hallet"
+# textbook = "Calculus"
+# edition = "6th"
+
+# category = "Calculus"
+# author = "Stewart"
+# textbook = "Calculus"
+# edition = "8th"
+
+# category = "Discrete Mathematics"
+# author = "Epp"
+# textbook = "Discrete Mathematics with Applications"
+# edition = "3rd"
+
+# category = "Probability, Statistics, and Random Processes"
+# author = "Moulin"
+# textbook = "Statistical Inference for Engineers and Data Scientists"
+# edition = "1st"
+
+# category = "Combinatorics"
+# author = "DeTemple"
+# textbook = "Combinatorial Reasoning"
+# edition = "1st"
+
+
+########################################################################################################################
+# category = "Combinatorics"
+# author = "Bender"
+# textbook = "Foundations of Applied Combinatorics"
+# edition = "1st"
+
+# category = "Combinatorics"
+# author = "Grimaldi"
+# textbook = "Discrete and Combinatorial Mathematics"
+# edition = "5th"
+
+# category = "Combinatorics"
+# author = "West"
+# textbook = "Combinatorial Mathematics"
+# edition = "1st"
+
+# category = "Graph Theory"
+# author = "West"
+# textbook = "Introduction to Graph Theory"
+# edition = "2nd"
+
+# Linear Algebra
+# Abstract math
+# Topics in math
+
+# category = "Pure and Abstract Mathematics"
+# author = "Fraleigh"
+# textbook = "A First Course in Abstract Algebra"
+# edition = "7th"
+
+# category = "Linear Algebra"
+# author = "Anthony"
+# textbook = "Linear Algebra"
+# edition = "2nd"
+
+# category = "Linear Algebra"
+# author = "Anton"
+# textbook = "Contemporary Linear Algebra"
+# edition = "1st"
+
+# category = "Linear Algebra"
+# author = "Bretscher"
+# textbook = "Linear Algebra with Applications"
+# edition = "5th"

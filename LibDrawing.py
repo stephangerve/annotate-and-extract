@@ -4,6 +4,9 @@ import keyboard
 import random
 import string
 import numpy as np
+import pytesseract
+from pytesseract import Output
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 #from LibDrawingCoordinates import *
 from Config import *
 
@@ -28,6 +31,8 @@ label_ready = False
 mask_x_offset = 20
 mask_y_offset = 20
 drawing_mask = False
+im_bnd_gray = None
+mask_offset_found = False
 
 bboxes = {}
 masks = {}
@@ -51,9 +56,12 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
     global label_ready
     global annotations
     global mask_x_offset, mask_y_offset
+    global im_bnd_gray
+    global mask_offset_found
     orig_image_w_outer_boundary = image.copy()
     grid_ordering = "horizontal"
     drawing = True
+    scan_mode = True
     if len(last_annotations) == 0:
         annotations = {}
     else:
@@ -122,7 +130,10 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
         annotate_mode = command
     # if command != OP_GRID_MODE:
     #     last_annotate_mode = command
-    cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+    # cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+    im_bnd_gray = cv2.cvtColor(orig_image, cv2.COLOR_BGR2GRAY)
+    bbox_outer_boundary = boundary
+    cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
     drawing_bbox = True
     image_w_new_bbox = image.copy()
     while drawing:
@@ -135,7 +146,9 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
             color = RED
         if annotate_mode != OP_GRID_MODE:
             if drawing_bbox is True:
+                #cv2.line(image_w_new_bbox, (x_start, y_end - 20), (x_end, y_end - 20), (0, 0, 0), 1)
                 cv2.rectangle(image_w_new_bbox, (x_start, y_start), (x_end, y_end), color, 1)
+                #cv2.line(image_w_new_bbox, (x_start, y_end + 20), (x_end, y_end + 20), (0, 0, 0), 1)
             if label_ready:
                 cv2.rectangle(image_w_new_bbox, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
                 if annotate_mode == OP_SET_HEADER or annotate_mode == OP_APP_TO_HEAD:
@@ -180,17 +193,25 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
                 else:
                     if last_annotate_mode is not None:
                         annotate_mode = last_annotate_mode
-                cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+                    # cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+                    bbox_outer_boundary = boundary
+                    cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
                 if len(bboxes) > 0:
-                    cv2.setMouseCallback("image", setBBOXCoordiates, [[(list(bboxes.values())[-1][0][0], list(bboxes.values())[-1][1][1]), (boundary[1][0], boundary[1][1])]])
+                    # cv2.setMouseCallback("image", setBBOXCoordiates, [[(list(bboxes.values())[-1][0][0], list(bboxes.values())[-1][1][1]), (boundary[1][0], boundary[1][1])]])
+                    bbox_outer_boundary = [(list(bboxes.values())[-1][0][0], list(bboxes.values())[-1][1][1]), (boundary[1][0], boundary[1][1])]
+                    cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
                 else:
-                    cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+                    # cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+                    bbox_outer_boundary = boundary
+                    cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
             else:
                 annotate_mode = sc_annotate_mode
                 if drawing is False:
                     image_w_new_bbox = image
                 else:
-                    cv2.setMouseCallback("image", setBBOXCoordiates, [[(sc_boundary[0][0], sc_boundary[1][1]), (boundary[1][0], boundary[1][1])]])
+                    # cv2.setMouseCallback("image", setBBOXCoordiates, [[(sc_boundary[0][0], sc_boundary[1][1]), (boundary[1][0], boundary[1][1])]])
+                    bbox_outer_boundary = [(sc_boundary[0][0], sc_boundary[1][1]), (boundary[1][0], boundary[1][1])]
+                    cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
 
         if drawing_bbox is False:
             if annotate_mode == OP_SIMPLE:
@@ -253,6 +274,7 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
             image = image_w_new_bbox
             drawing_bbox = True
             label_ready = False
+            mask_offset_found = False
 
         if keyboard.is_pressed('ctrl+shift+alt+1'):
             time.sleep(0.01)
@@ -352,6 +374,12 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
         elif keyboard.is_pressed('ctrl+shift+alt+x'):
             while keyboard.is_pressed('ctrl+shift+alt+x'):
                 continue
+            if scan_mode:
+                scan_mode = False
+                cv2.setMouseCallback("image", setBBOXCoordiates, [bbox_outer_boundary])
+            else:
+                scan_mode = True
+                cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
         elif keyboard.is_pressed('ctrl+shift+alt+y'):
             while keyboard.is_pressed('ctrl+shift+alt+y'):
                 continue
@@ -380,8 +408,9 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
                 continue
             if len(bboxes) == 0:
                 drawing = False
+                mask_offset_found = False
                 print("Canceled.")
-                return False, None, None, None, None, annotations, last_image_index, header
+                return False, None, None, [], [], annotations, last_image_index, header
             else:
                 undo_code = list(annotations.keys())[-1]
                 undo_annotation = annotations.pop(undo_code)
@@ -394,6 +423,7 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
                     if len(annotations) > 0 \
                     and annotations[list(annotations.keys())[-1]]["column_pos"] != column_pos \
                     and column_pos in [COLUMN_LEFT, COLUMN_RIGHT]:
+                        mask_offset_found = False
                         return False, None, undo_annotation["operation"], bboxes, masks, annotations, undo_annotation["index"], header
                 if undo_annotation["operation"] in [OP_SIMPLE, OP_APP_TO_LAST, OP_COMBINE_W_H]:
                     if undo_annotation["grid"] is True:
@@ -448,7 +478,9 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
                 cv2.waitKey(1)
                 x_start, y_start, x_end, y_end = 0, 0, 0, 0
                 label_x_start, label_y_start, label_x_end, label_y_end = 0, 0, 0, 0
-                cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+                # cv2.setMouseCallback("image", setBBOXCoordiates, [boundary])
+                bbox_outer_boundary = boundary
+                cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
     return True, image_w_new_bbox, annotate_mode, bboxes, masks, annotations, current_image_index, header
 
 
@@ -465,7 +497,8 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
     global mask_x_offset
     temp_bboxes = {}
     old_image_index = current_image_index
-    cv2.setMouseCallback("image", setSubcolumnsCoordiates, [boundary])
+    # cv2.setMouseCallback("image", setSubcolumnsCoordiates, [boundary])
+    cv2.setMouseCallback("image", scanAndSetSubcolumnsCoordiates, [boundary])
     drawing_subcolumns = True
     image_w_subcolumns = image.copy()
     code = generateCode()
@@ -527,7 +560,8 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
         color = BBOX_COLOR[annotate_mode]
     else:
         color = RED
-    cv2.setMouseCallback("image", setSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+    # cv2.setMouseCallback("image", setSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+    cv2.setMouseCallback("image", scanAndSetSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
     while drawing_subcolumns:
         image_w_sc_rows = image_w_subcolumns.copy()
         if drawing_sc_rows is True:
@@ -545,7 +579,8 @@ def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=Non
             cv2.waitKey(1)
             image_w_subcolumns = image_w_sc_rows
             drawing_sc_rows = True
-            cv2.setMouseCallback("image", setSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+            # cv2.setMouseCallback("image", setSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+            cv2.setMouseCallback("image", scanAndSetSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
 
         if keyboard.is_pressed('esc'):
             time.sleep(0.5)
@@ -720,6 +755,7 @@ def drawColumnLine(image, boundary):
     global outer_boundary
     global one_column_boundary_set
     global drawing
+    global im_bnd_gray
     if two_columns_boundary_set:
         image_w_column_line = cv2.rectangle(image, column_line[0], column_line[1], NEON_GREEN, 2)
         cv2.imshow("image", image_w_column_line)
@@ -728,7 +764,9 @@ def drawColumnLine(image, boundary):
         boundary_right_column = [(column_line[0][0], boundary[0][1]), (boundary[1][0], boundary[1][1])]
     else:
         drawing_column_line = True
-        cv2.setMouseCallback("image", setColumnLineCoordiates, [boundary])
+        # cv2.setMouseCallback("image", setColumnLineCoordiates, [boundary])
+        im_bnd_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        cv2.setMouseCallback("image", scanSetColumnLineCoordiates, [boundary])
         while True:
             image_w_column_line = image.copy()
             if drawing_column_line is True:
@@ -782,6 +820,62 @@ def setSCRowsCoordiates(event, x, y, flags, param):
         if y > boundary[1][1]:
             drawing_subcolumns = False
 
+def scanAndSetSCRowsCoordiates(event, x, y, flags, param):
+    global drawing_subcolumns
+    global drawing_sc_rows
+    global temp_bboxes
+    global x_start, y_start, x_end, y_end
+    boundary = param[0]
+    if event == cv2.EVENT_MOUSEMOVE:
+        if y > boundary[1][1]:
+            x_start, y_start, x_end, y_end = boundary[0][0], boundary[1][1], boundary[1][0], boundary[1][1]
+        elif y < boundary[0][1]:
+            x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], boundary[0][1]
+        else:
+            scan_region = im_bnd_gray[y - 20:y + 20, boundary[0][0]:boundary[1][0]]
+            offset = -20
+            reg_rows = {}
+            cont_rows = []
+            start = True
+            for i in range(40):
+                avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
+                reg_rows[y + offset] = avg_pixel_val
+                offset += 1
+                if avg_pixel_val == 255:
+                    if start == False:
+                        row = [y + offset]
+                        cont_rows.append(row)
+                        start = True
+                    else:
+                        if len(cont_rows) > 0:
+                            cont_rows[-1].append(y + offset)
+                else:
+                    start = False
+            idx = None
+            max_len = 0
+            for i in range(len(cont_rows)):
+                reg = cont_rows[i]
+                if (reg[-1] - reg[0]) > max_len:
+                    max_len = reg[-1] - reg[0]
+                    idx = i
+            if idx is not None:
+                if (cont_rows[idx][-1] - cont_rows[idx][0]) % 2 == 1:
+                    midpoint = int((cont_rows[idx][-1] + cont_rows[idx][0]) / 2)
+                else:
+                    midpoint = int(np.ceil((cont_rows[idx][-1] + cont_rows[idx][0]) / 2))
+                if midpoint > boundary[1][1]:
+                    x_start, y_start, x_end, y_end = boundary[0][0], boundary[1][1], boundary[1][0], boundary[1][1]
+                elif y < boundary[0][1]:
+                    x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], boundary[0][1]
+                else:
+                    x_start, y_start, x_end, y_end = boundary[0][0], midpoint, boundary[1][0], midpoint
+            else:
+                x_start, y_start, x_end, y_end = boundary[0][0], y, boundary[1][0], y
+    if event == cv2.EVENT_LBUTTONUP:
+        drawing_sc_rows = False
+        if y > boundary[1][1]:
+            drawing_subcolumns = False
+
 
 def setSubcolumnsCoordiates(event, x, y, flags, param):
     global drawing_subcolumns
@@ -812,7 +906,72 @@ def setSubcolumnsCoordiates(event, x, y, flags, param):
         drawing_mask = False
 
 
+def scanAndSetSubcolumnsCoordiates(event, x, y, flags, param):
+    global drawing_subcolumns
+    global sc_x_center, sc_y_center
+    global mask_x_offset, mask_y_offset
+    global drawing_mask
+    boundary = param[0]
+    if x > boundary[1][0]:
+        sc_x_center = boundary[1][0]
+    elif x < boundary[0][0]:
+        sc_x_center = boundary[0][0]
+    else:
+        sc_x_center = x
 
+    if y > boundary[1][1]:
+        sc_y_center = boundary[1][1]
+    elif y < boundary[0][1]:
+        sc_y_center = boundary[0][1]
+    else:
+        scan_region = im_bnd_gray[y - 20:y + 20, boundary[0][0]:boundary[1][0]]
+        offset = -20
+        reg_rows = {}
+        cont_rows = []
+        start = True
+        for i in range(40):
+            avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
+            reg_rows[y + offset] = avg_pixel_val
+            offset += 1
+            if avg_pixel_val == 255:
+                if start == False:
+                    row = [y + offset]
+                    cont_rows.append(row)
+                    start = True
+                else:
+                    if len(cont_rows) > 0:
+                        cont_rows[-1].append(y + offset)
+            else:
+                start = False
+        idx = None
+        max_len = 0
+        for i in range(len(cont_rows)):
+            reg = cont_rows[i]
+            if (reg[-1] - reg[0]) > max_len:
+                max_len = reg[-1] - reg[0]
+                idx = i
+        if idx is not None:
+            if (cont_rows[idx][-1] - cont_rows[idx][0]) % 2 == 1:
+                midpoint = int((cont_rows[idx][-1] + cont_rows[idx][0]) / 2)
+            else:
+                midpoint = int(np.ceil((cont_rows[idx][-1] + cont_rows[idx][0]) / 2))
+            if midpoint > boundary[1][1]:
+                sc_y_center = boundary[1][1]
+            elif y < boundary[0][1]:
+                sc_y_center = boundary[0][1]
+            else:
+                sc_y_center = midpoint
+        else:
+            sc_y_center = y
+    if event == cv2.EVENT_LBUTTONUP:
+        drawing_subcolumns = False
+
+    if event == cv2.EVENT_RBUTTONDOWN:
+        drawing_mask = True
+    elif event == cv2.EVENT_MOUSEMOVE and drawing_mask == True:
+        mask_x_offset = x - x_start
+    elif event == cv2.EVENT_RBUTTONUP and drawing_mask == True:
+        drawing_mask = False
 
 def setColumnLineCoordiates(event, x, y, flags, param):
     global drawing_column_line
@@ -826,6 +985,64 @@ def setColumnLineCoordiates(event, x, y, flags, param):
             x_start, y_start, x_end, y_end = outer_boundary[0][0], outer_boundary[0][1], outer_boundary[0][0], outer_boundary[1][1]
         else:
             x_start, y_start, x_end, y_end = x, outer_boundary[0][1], x, outer_boundary[1][1]
+    if event == cv2.EVENT_LBUTTONUP:
+        column_line = [(x_start, y_start), (x_end, y_end)]
+        drawing_column_line = False
+
+def scanSetColumnLineCoordiates(event, x, y, flags, param):
+    global drawing_column_line
+    global column_line
+    global boundary_left_column, boundary_right_column
+    global x_start, y_start, x_end, y_end
+    global im_bnd_gray
+    if event == cv2.EVENT_MOUSEMOVE:
+        if x > outer_boundary[1][0]:
+            x_start, y_start, x_end, y_end = outer_boundary[1][0], outer_boundary[0][1], outer_boundary[1][0], outer_boundary[1][1]
+        elif x < outer_boundary[0][0]:
+            x_start, y_start, x_end, y_end = outer_boundary[0][0], outer_boundary[0][1], outer_boundary[0][0], outer_boundary[1][1]
+        else:
+            # x_start, y_start, x_end, y_end = x, outer_boundary[0][1], x, outer_boundary[1][1]
+            scan_radius = 100
+            scan_region = im_bnd_gray[outer_boundary[0][1]:outer_boundary[1][1], x - scan_radius:x + scan_radius]
+            scan_region = np.transpose(scan_region)
+            offset = -scan_radius
+            reg_columns = {}
+            cont_columns = []
+            start = True
+            for i in range(len(scan_region)):
+                avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
+                reg_columns[x + offset] = avg_pixel_val
+                offset += 1
+                if avg_pixel_val > 250:
+                    if start == False:
+                        column = [x + offset]
+                        cont_columns.append(column)
+                        start = True
+                    else:
+                        if len(cont_columns) > 0:
+                            cont_columns[-1].append(x + offset)
+                else:
+                    start = False
+            idx = None
+            max_len = 0
+            for i in range(len(cont_columns)):
+                reg = cont_columns[i]
+                if (reg[-1] - reg[0]) > max_len:
+                    max_len = reg[-1] - reg[0]
+                    idx = i
+            if idx is not None:
+                if (cont_columns[idx][-1] - cont_columns[idx][0]) % 2 == 1:
+                    midpoint = int((cont_columns[idx][-1] + cont_columns[idx][0]) / 2)
+                else:
+                    midpoint = int(np.ceil((cont_columns[idx][-1] + cont_columns[idx][0]) / 2))
+                if midpoint > outer_boundary[1][0]:
+                    x_start, y_start, x_end, y_end = outer_boundary[1][0], outer_boundary[0][1], outer_boundary[1][0], outer_boundary[1][1]
+                elif y < outer_boundary[0][0]:
+                    x_start, y_start, x_end, y_end = outer_boundary[0][0], outer_boundary[0][1], outer_boundary[0][0], outer_boundary[1][1]
+                else:
+                    x_start, y_start, x_end, y_end = midpoint, outer_boundary[0][1], midpoint, outer_boundary[1][1]
+            else:
+                x_start, y_start, x_end, y_end = x, outer_boundary[0][1], x, outer_boundary[1][1]
     if event == cv2.EVENT_LBUTTONUP:
         column_line = [(x_start, y_start), (x_end, y_end)]
         drawing_column_line = False
@@ -901,6 +1118,182 @@ def setBBOXCoordiates(event, x, y, flags, param):
         mask_x_offset, mask_y_offset = x - x_start, y - y_start
     elif event == cv2.EVENT_RBUTTONUP and drawing_mask == True:
         drawing_mask = False
+
+def scanAndSetBBOXCoordiates(event, x, y, flags, param):
+    global drawing
+    global drawing_bbox, bboxes
+    global x_start, y_start, x_end, y_end
+    global label_x_start, label_y_start, label_x_end, label_y_end
+    global label_ready
+    global mask_x_offset, mask_y_offset
+    global drawing_mask
+    global im_bnd_gray
+    global mask_offset_found
+    boundary = param[0]
+    if drawing_bbox and drawing:
+        if len(bboxes) == 0:
+            if y > boundary[1][1]:
+                x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], boundary[1][1]
+            elif y < boundary[0][1]:
+                x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], boundary[0][1]
+            else:
+                # x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], y
+                scan_region = im_bnd_gray[y - 20:y + 20, boundary[0][0]:boundary[1][0]]
+                offset = -20
+                reg_rows = {}
+                cont_rows = []
+                start = True
+                for i in range(40):
+                    avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
+                    reg_rows[y + offset] = avg_pixel_val
+                    offset+=1
+                    if avg_pixel_val == 255:
+                        if start == False:
+                            row = [y + offset]
+                            cont_rows.append(row)
+                            start = True
+                        else:
+                            if len(cont_rows) > 0:
+                                cont_rows[-1].append(y + offset)
+                    else:
+                        start = False
+                idx = None
+                max_len = 0
+                for i in range(len(cont_rows)):
+                    reg = cont_rows[i]
+                    if (reg[-1] - reg[0]) > max_len:
+                        max_len = reg[-1] - reg[0]
+                        idx = i
+                if idx is not None:
+                    if (cont_rows[idx][-1] - cont_rows[idx][0]) % 2 == 1:
+                        midpoint = int((cont_rows[idx][-1] + cont_rows[idx][0]) / 2)
+                    else:
+                        midpoint = int(np.ceil((cont_rows[idx][-1] + cont_rows[idx][0]) / 2))
+                    if midpoint > boundary[1][1]:
+                        x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], boundary[1][1]
+                    elif y < boundary[0][1]:
+                        x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], boundary[0][1]
+                    else:
+                        x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], midpoint
+                else:
+                    x_start, y_start, x_end, y_end = boundary[0][0], boundary[0][1], boundary[1][0], y
+
+        else:
+            bb_x_start, bb_y_start, bb_x_end, bb_y_end = list(bboxes.values())[-1][0][0], list(bboxes.values())[-1][1][1], list(bboxes.values())[-1][1][0], list(bboxes.values())[-1][1][1]
+            if y > boundary[1][1]:
+                x_start, y_start, x_end, y_end = bb_x_start, bb_y_start, bb_x_end, boundary[1][1]
+            elif y < bb_y_start:
+                x_start, y_start, x_end, y_end = bb_x_start, bb_y_start, bb_x_end, bb_y_start
+            else:
+                # x_start, y_start, x_end, y_end = bb_x_start, bb_y_end, bb_x_end, y
+                scan_region = im_bnd_gray[y - 20:y + 20, bb_x_start:bb_x_end]
+                offset = -20
+                reg_rows = {}
+                cont_rows = []
+                start = True
+                for i in range(40):
+                    avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
+                    #reg_rows[y + offset] = avg_pixel_val
+                    offset += 1
+                    if avg_pixel_val == 255:
+                        if start == False:
+                            row = [y + offset]
+                            cont_rows.append(row)
+                            start = True
+                        else:
+                            if len(cont_rows) > 0:
+                                cont_rows[-1].append(y + offset)
+                    else:
+                        start = False
+                idx = None
+                max_len = 0
+                for i in range(len(cont_rows)):
+                    reg = cont_rows[i]
+                    if (reg[-1] - reg[0]) > max_len:
+                        max_len = reg[-1] - reg[0]
+                        idx = i
+                if idx is not None:
+                    if (cont_rows[idx][-1] - cont_rows[idx][0]) % 2 == 1:
+                        midpoint = int((cont_rows[idx][-1] + cont_rows[idx][0]) / 2)
+                    else:
+                        midpoint = int(np.ceil((cont_rows[idx][-1] + cont_rows[idx][0]) / 2))
+                    if midpoint > boundary[1][1]:
+                        x_start, y_start, x_end, y_end = bb_x_start, bb_y_start, bb_x_end, boundary[1][1]
+                    elif y < bb_y_start:
+                        x_start, y_start, x_end, y_end = bb_x_start, bb_y_start, bb_x_end, bb_y_start
+                    else:
+                        x_start, y_start, x_end, y_end = bb_x_start, bb_y_start, bb_x_end, midpoint
+                else:
+                    x_start, y_start, x_end, y_end = bb_x_start, bb_y_start, bb_x_end, y
+
+        label_x_start, label_y_start, label_x_end, label_y_end = x_start - 28, y_start, x_start - 2, y_start + 20
+        label_ready = True
+
+    # Detection and Masking
+    # if mask_offset_found is False and drawing_bbox and drawing:
+    #     if len(bboxes) == 0:
+    #         msr_y_top, msr_x_start, msr_x_end = boundary[0][1], boundary[0][0], boundary[1][0]
+    #     else:
+    #         msr_x_start, msr_y_start, msr_x_end, msr_y_top = list(bboxes.values())[-1][0][0], list(bboxes.values())[-1][1][1], list(bboxes.values())[-1][1][0], list(bboxes.values())[-1][1][1]
+    #     mask_scan_region = im_bnd_gray[msr_y_top:y, msr_x_start:msr_x_end]
+    #     top_horizontal_white_row_detected = False
+    #     for i in range(len(mask_scan_region)):
+    #         avg_pixel_val = int(np.floor(np.mean(mask_scan_region[i])))
+    #         if avg_pixel_val < 255 and top_horizontal_white_row_detected is False:
+    #             top_horizontal_white_row_detected = True
+    #             continue
+    #         elif avg_pixel_val == 255 and top_horizontal_white_row_detected:
+    #             y_pos_1 = i
+    #             y_pos_2 = i
+    #             for j in range(y_pos_1, len(mask_scan_region)):
+    #                 if True in [k <= 240 for k in mask_scan_region[j]]:
+    #                     y_pos_2 = j
+    #                     break
+    #             if (y_pos_1 + y_pos_2) % 2 == 1:
+    #                 mask_y_offset = int((y_pos_1 + y_pos_2)/2)
+    #             else:
+    #                 mask_y_offset = int(np.ceil(y_pos_1 + y_pos_2)/2)
+    #             # mask_offset_found = True
+    #             break
+    #     mask_scan_region_x = np.transpose(im_bnd_gray[msr_y_top:msr_y_top + mask_y_offset, msr_x_start:msr_x_end])
+    #     white_space_count = 0
+    #     final_white_col_detected = False
+    #     look_for_black = False
+    #     for i in range(len(mask_scan_region_x)):
+    #         avg_pixel_val = int(np.floor(np.mean(mask_scan_region_x[i])))
+    #         if avg_pixel_val == 255 and final_white_col_detected is False and look_for_black is False:
+    #             white_space_count += 1
+    #             look_for_black = True
+    #             if white_space_count == NUM_WHT_SPACE:
+    #                 final_white_col_detected = True
+    #                 x_pos_1 = i
+    #                 continue
+    #         if avg_pixel_val < 255 and final_white_col_detected is False and look_for_black is True:
+    #             look_for_black = False
+    #         if avg_pixel_val < 255 and final_white_col_detected is True and look_for_black is True:
+    #             if (x_pos_1 + i) % 2 == 1:
+    #                 mask_x_offset = int((x_pos_1 + i)/2)
+    #             else:
+    #                 mask_x_offset = int(np.ceil(x_pos_1 + i)/2)
+    #             mask_offset_found = True
+    #             break
+
+
+
+
+
+
+    if event == cv2.EVENT_LBUTTONUP:
+        drawing_bbox = False
+        if y_end >= boundary[1][1]:
+            drawing = False
+    if event == cv2.EVENT_RBUTTONDOWN:
+        drawing_mask = True
+    elif event == cv2.EVENT_MOUSEMOVE and drawing_mask == True:
+        mask_x_offset, mask_y_offset = x - x_start, y - y_start
+    elif event == cv2.EVENT_RBUTTONUP and drawing_mask == True:
+        drawing_mask = False
+
 
 
 
