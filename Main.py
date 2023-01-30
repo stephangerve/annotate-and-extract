@@ -17,7 +17,6 @@ if __name__ == "__main__":
     two_columns_boundary_set = False
     image_indices = []
     while True:
-        #password = str(input("Enter db password: "))
         cnx = mysql.connector.connect(
             host=HOSTNAME,
             user=USERNAME,
@@ -46,16 +45,16 @@ if __name__ == "__main__":
             set_dir_unmasked = os.path.join(e_packs_txtbk_dir, "Exercises Images", "Unmasked", chapter)
             current_set_index = sets_list.index([[chapter, section], {"masked": set_dir_masked, "unmasked": set_dir_unmasked}])
             if odds_only:
-                current_image_index = int(os.listdir(temp_ss_path)[-1].split(" -- Masked Exercise ")[1].split(".png")[0]) + 2
+                current_image_index = int(os.listdir(temp_ss_path)[-1].split(".")[-3]) + 2
             else:
                 current_image_index = int(os.listdir(temp_ss_path)[-1].split(".")[-3]) + 1
         elif IMAGE_TYPE == "Solutions":
             set_dir = os.path.join(e_packs_txtbk_dir, "Solutions Images", chapter)
             current_set_index = sets_list.index([[chapter, section], os.path.join(e_packs_txtbk_dir, "Solutions Images", chapter)])
             if odds_only:
-                current_image_index = int(os.listdir(temp_ss_path)[-1].split(" -- Solution ")[1].split(".png")[0]) + 2
+                current_image_index = int(os.listdir(temp_ss_path)[-1].split(".")[-3]) + 2
             else:
-                current_image_index = int(os.listdir(temp_ss_path)[-1].split(" -- Solution ")[1].split(".png")[0]) + 1
+                current_image_index = int(os.listdir(temp_ss_path)[-1].split(".")[-3]) + 1
     print("Starting image index: " + str(DEFAULT_FIRST_IMAGE_INDEX))
     print("Current image index: " + str(current_image_index))
     print("Current set: " + str(sets_list[current_set_index][0]))
@@ -151,7 +150,7 @@ if __name__ == "__main__":
         #             one_column_boundary_set = False
         elif keyboard.is_pressed('ctrl+shift+alt+z'):
             time.sleep(0.01)
-            current_image_index, current_set_index, header = resetImageList(sets_list, current_set_index, cursor, cnx, textbookid)
+            current_image_index, current_set_index, header = resetImageList(current_image_index, sets_list, current_set_index, cursor, cnx, textbookid)
 
 
 

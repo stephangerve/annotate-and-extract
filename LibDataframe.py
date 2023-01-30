@@ -56,7 +56,10 @@ def addSetsList(category, textbook_author, textbook_title, textbook_edition, cur
     query = ("SELECT TextbookID FROM textbooks WHERE " + row_query)
     cursor.execute(query)
     id = cursor.fetchall()[0][0]
-    query = ("SELECT ChapterNumber, SectionNumber FROM sections WHERE TextbookID = '" + id + "' and AllExercisesExtracted = '0'")
+    if IMAGE_TYPE == "Exercises":
+        query = ("SELECT ChapterNumber, SectionNumber FROM sections WHERE TextbookID = '" + id + "' and AllExercisesExtracted = 'False'")
+    elif IMAGE_TYPE == "Solutions":
+        query = ("SELECT ChapterNumber, SectionNumber FROM sections WHERE TextbookID = '" + id + "' and AllSolutionsExtracted = 'False'")
     cursor.execute(query)
     entries = cursor.fetchall()
     sets_list = [list(entry) for entry in entries]
