@@ -38,6 +38,7 @@ im_bnd_gray = None
 mask_offset_found = False
 white_columns = None
 grid_scan_mode = None
+automatic_bbox_detect_mode = False
 
 bboxes = {}
 grid_col_bboxes = []
@@ -65,6 +66,7 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
     global mask_x_offset, mask_y_offset
     global im_bnd_gray
     global mask_offset_found
+    global automatic_bbox_detect_mode
     orig_image_w_outer_boundary = image.copy()
     grid_ordering = "horizontal"
     drawing = True
@@ -152,35 +154,37 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
         else:
             color = RED
         if annotate_mode != OP_GRID_MODE:
-            if drawing_bbox is True:
-                #cv2.line(image_w_new_bbox, (x_start, y_end - 20), (x_end, y_end - 20), (0, 0, 0), 1)
-                cv2.rectangle(image_w_new_bbox, (x_start, y_start), (x_end, y_end), color, 1)
-                #cv2.line(image_w_new_bbox, (x_start, y_end + 20), (x_end, y_end + 20), (0, 0, 0), 1)
-            if label_ready:
-                cv2.rectangle(image_w_new_bbox, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
-                if annotate_mode == OP_SET_HEADER or annotate_mode == OP_APP_TO_HEAD:
-                    label_str = "HEAD"
-                    font_size = 0.30
-                else:
-                    label_str = str(current_image_index).zfill(3)
-                    font_size = 0.40
-                cv2.putText(image_w_new_bbox, label_str, (label_x_start + 2, label_y_start + 14), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 255, 255), 1, cv2.LINE_AA)
-                if IMAGE_TYPE == "Exercises" and annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
-                    mask_x_start, mask_y_start, mask_x_end, mask_y_end = x_start, y_start, x_start + mask_x_offset, y_start + mask_y_offset
-                    if mask_y_end >= y_end:
-                        im_region = image_w_new_bbox[mask_y_start:y_end, mask_x_start:mask_x_end]
-                        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
-                        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
-                        image_w_new_bbox[mask_y_start:y_end, mask_x_start:mask_x_end] = masked_reg
-                        cv2.rectangle(image_w_new_bbox, (mask_x_start, mask_y_start), (mask_x_end, y_end), color, 1)
+            if automatic_bbox_detect_mode:
+                condition, image = setBBoxesAutomatically(orig_image, image, boundary, annotate_mode, column_pos)########################################################################################################################################################
+                automatic_bbox_detect_mode = False
+            else:
+                if drawing_bbox is True:
+                    cv2.rectangle(image_w_new_bbox, (x_start, y_start), (x_end, y_end), color, 1)
+                if label_ready:
+                    cv2.rectangle(image_w_new_bbox, (label_x_start, label_y_start), (label_x_end, label_y_end), color, -1)
+                    if annotate_mode == OP_SET_HEADER or annotate_mode == OP_APP_TO_HEAD:
+                        label_str = "HEAD"
+                        font_size = 0.30
                     else:
-                        im_region = image_w_new_bbox[mask_y_start:mask_y_end, mask_x_start:mask_x_end]
-                        white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
-                        masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
-                        image_w_new_bbox[mask_y_start:mask_y_end, mask_x_start:mask_x_end] = masked_reg
-                        cv2.rectangle(image_w_new_bbox, (mask_x_start, mask_y_start), (mask_x_end, mask_y_end), color, 1)
-            cv2.imshow("image", image_w_new_bbox)
-            cv2.waitKey(1)
+                        label_str = str(current_image_index).zfill(3)
+                        font_size = 0.40
+                    cv2.putText(image_w_new_bbox, label_str, (label_x_start + 2, label_y_start + 14), cv2.FONT_HERSHEY_SIMPLEX, font_size, (255, 255, 255), 1, cv2.LINE_AA)
+                    if IMAGE_TYPE == "Exercises" and annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
+                        mask_x_start, mask_y_start, mask_x_end, mask_y_end = x_start, y_start, x_start + mask_x_offset, y_start + mask_y_offset
+                        if mask_y_end >= y_end:
+                            im_region = image_w_new_bbox[mask_y_start:y_end, mask_x_start:mask_x_end]
+                            white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                            masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                            image_w_new_bbox[mask_y_start:y_end, mask_x_start:mask_x_end] = masked_reg
+                            cv2.rectangle(image_w_new_bbox, (mask_x_start, mask_y_start), (mask_x_end, y_end), color, 1)
+                        else:
+                            im_region = image_w_new_bbox[mask_y_start:mask_y_end, mask_x_start:mask_x_end]
+                            white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+                            masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+                            image_w_new_bbox[mask_y_start:mask_y_end, mask_x_start:mask_x_end] = masked_reg
+                            cv2.rectangle(image_w_new_bbox, (mask_x_start, mask_y_start), (mask_x_end, mask_y_end), color, 1)
+                cv2.imshow("image", image_w_new_bbox)
+                cv2.waitKey(1)
         else:
             if annotate_mode == OP_APP_TO_LAST:
                 if last_annotate_mode is not None:
@@ -389,6 +393,12 @@ def drawBBoxes(orig_image, image, boundary, command, prev_bboxes, prev_masks, la
             else:
                 scan_mode = True
                 cv2.setMouseCallback("image", scanAndSetBBOXCoordiates, [bbox_outer_boundary])
+        elif keyboard.is_pressed('ctrl+shift+alt+y'):
+            while keyboard.is_pressed('ctrl+shift+alt+y'):
+                continue
+            automatic_bbox_detect_mode = not automatic_bbox_detect_mode
+            print("automatic_bbox_detect_mode set to: " + str(automatic_bbox_detect_mode))
+
         # elif keyboard.is_pressed('ctrl+shift+alt+y'):
         #     while keyboard.is_pressed('ctrl+shift+alt+y'):
         #         continue
@@ -712,160 +722,6 @@ def drawSubcolumns2(image, boundary, annotate_mode, grid_ordering, column_pos=No
 
 
 
-
-# def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=None):
-#     global sc_x_center, sc_y_center
-#     global drawing_boundary, drawing_subcolumns, drawing, drawing_sc_rows
-#     global x_start, y_start, x_end, y_end
-#     global bboxes
-#     global masks
-#     global current_image_index
-#     global annotations
-#     global label_ready
-#     global header
-#     global mask_x_offset
-#     temp_bboxes = {}
-#     old_image_index = current_image_index
-#     cv2.setMouseCallback("image", scanAndSetSubcolumnsCoordiates, [boundary])
-#     drawing_subcolumns = True
-#     image_w_subcolumns = image.copy()
-#     code = generateCode()
-#     temp_bboxes[code] = [(boundary[0][0], boundary[0][1]), (boundary[1][0], boundary[0][1])]
-#     if annotate_mode == OP_GRID_MODE:
-#         annotate_mode = OP_SIMPLE
-#     x_0, y_0, x_1, y_1 = boundary[0][0], boundary[0][1], boundary[0][0], boundary[0][1]
-#     l_x_0, l_y_0, l_x_1, l_y_1 = x_0 - 28, y_0, x_1 - 2, y_1 + 20
-#     while drawing_subcolumns:
-#         if annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
-#             color = BBOX_COLOR[annotate_mode]
-#         else:
-#             color = RED
-#         image_w_subcolumns = image.copy()
-#         cv2.rectangle(image_w_subcolumns, (l_x_0, l_y_0), (l_x_1, l_y_1), color, -1)
-#         cv2.putText(image_w_subcolumns, "GRID", (l_x_0 + 2, l_y_0 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.30, (255, 255, 255), 1, cv2.LINE_AA)
-#         cv2.rectangle(image_w_subcolumns, temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center), color, 1)
-#         cv2.line(image_w_subcolumns, (sc_x_center, sc_y_center), (sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), color, 1)
-#
-#         mask_x_start, mask_x_end = x_start, x_start + mask_x_offset
-#         im_region_left = image_w_subcolumns[y_start:sc_y_center, mask_x_start:mask_x_end]
-#         im_region_right = image_w_subcolumns[y_start:sc_y_center, sc_x_center:sc_x_center + mask_x_offset]
-#         white_rect = np.ones(im_region_left.shape, dtype=np.uint8) * 150
-#         masked_reg_left = cv2.addWeighted(im_region_left, 0.5, white_rect, 0.5, 1.0)
-#         masked_reg_right = cv2.addWeighted(im_region_right, 0.5, white_rect, 0.5, 1.0)
-#         image_w_subcolumns[y_start:sc_y_center, mask_x_start:mask_x_end] = masked_reg_left
-#         image_w_subcolumns[y_start:sc_y_center, sc_x_center:sc_x_center + mask_x_offset] = masked_reg_right
-#         cv2.rectangle(image_w_subcolumns, (mask_x_start, y_start), (mask_x_end, sc_y_center), color, 1)
-#         cv2.rectangle(image_w_subcolumns, (sc_x_center, y_start), (sc_x_center + mask_x_offset, sc_y_center), color, 1)
-#         cv2.imshow("image", image_w_subcolumns)
-#         cv2.waitKey(1)
-#
-#         if keyboard.is_pressed('ctrl+shift+alt+1'):
-#             time.sleep(0.01)
-#             annotate_mode = OP_SIMPLE
-#         elif keyboard.is_pressed('ctrl+shift+alt+4'):
-#             time.sleep(0.01)
-#             annotate_mode = OP_COMBINE_W_H
-#         # elif keyboard.is_pressed('ctrl+shift+alt+C'):
-#         #     if mask_x_end - 1 > x_start:
-#         #         mask_x_offset -= 1
-#         # elif keyboard.is_pressed('ctrl+shift+alt+G'):
-#         #     if mask_x_end + 1 < sc_x_center:
-#         #         mask_x_offset += 1
-#         if keyboard.is_pressed('esc'):
-#             time.sleep(0.5)
-#             current_image_index = old_image_index
-#             drawing_subcolumns = False
-#             print("Canceled.")
-#             return False, image, None, None
-#     cv2.rectangle(image_w_subcolumns, temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center), color, 2)
-#     cv2.line(image_w_subcolumns, (sc_x_center, sc_y_center), (sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), color, 2)
-#     cv2.imshow("image", image_w_subcolumns)
-#     cv2.waitKey(1)
-#     x_start, y_start, x_end, y_end = 0,0,0,0
-#     drawing_subcolumns = True
-#     drawing_sc_rows = True
-#     if annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
-#         color = BBOX_COLOR[annotate_mode]
-#     else:
-#         color = RED
-#     # cv2.setMouseCallback("image", setSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
-#     cv2.setMouseCallback("image", scanAndSetSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
-#     while drawing_subcolumns:
-#         image_w_sc_rows = image_w_subcolumns.copy()
-#         if drawing_sc_rows is True:
-#             cv2.line(image_w_sc_rows, (x_start, y_start), (x_end, y_end), color, 1)
-#             cv2.imshow("image", image_w_sc_rows)
-#             cv2.waitKey(1)
-#
-#         if drawing_sc_rows is False:
-#             code = generateCode()
-#             temp_bboxes[code] = [(boundary[0][0], temp_bboxes[list(temp_bboxes.keys())[-1]][1][1]), (sc_x_center, y_end)]
-#             code = generateCode()
-#             temp_bboxes[code] = [(sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), (boundary[1][0], y_end)]
-#             cv2.line(image_w_sc_rows, (x_start, y_start), (x_end, y_end), color, 2)
-#             cv2.imshow("image", image_w_sc_rows)
-#             cv2.waitKey(1)
-#             image_w_subcolumns = image_w_sc_rows
-#             drawing_sc_rows = True
-#             # cv2.setMouseCallback("image", setSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
-#             cv2.setMouseCallback("image", scanAndSetSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
-#
-#         if keyboard.is_pressed('esc'):
-#             time.sleep(0.5)
-#             current_image_index = old_image_index
-#             drawing_subcolumns = False
-#             temp_bboxes = {}
-#             print("Canceled.")
-#             return False, image, None, None
-#     if annotate_mode == OP_COMBINE_W_H:
-#         grid_header = header
-#     else:
-#         grid_header = None
-#     k = int(current_image_index + (len(temp_bboxes) - 1)/2)
-#     for i in range(len(temp_bboxes)):
-#         key = list(temp_bboxes.keys())[i]
-#         temp_bbox = list(temp_bboxes.values())[i]
-#         temp_bbox = list(temp_bboxes.values())[i]
-#         bboxes[key] = temp_bbox
-#         masks[key] = [(mask_x_start, temp_bbox[0][1]), (mask_x_end, temp_bbox[1][1])]
-#         if i != 0:
-#             if grid_ordering == "horizontal":
-#                 addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=current_image_index, grid=True, header=grid_header)
-#                 if odds_only:
-#                     current_image_index += 2
-#                 else:
-#                     current_image_index += 1
-#             elif grid_ordering == "vertical":
-#                 if i % 2 == 1:
-#                     addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=current_image_index, grid=True, header=grid_header)
-#                     if odds_only:
-#                         current_image_index += 2
-#                     else:
-#                         current_image_index += 1
-#                 else:
-#                     addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=k, grid=True, header=grid_header)
-#                     k += 1
-#         else:
-#             addAnnotation(code=key, shape=SHAPE_LINE, operation=annotate_mode, column_pos=column_pos, index=None, header=grid_header)
-#     if grid_ordering == "vertical":
-#         current_image_index = k
-#     bboxes.update(temp_bboxes)
-#     code = generateCode()
-#     bboxes[code] = [(boundary[0][0], sc_y_center), (boundary[1][0], sc_y_center)]
-#     addAnnotation(code=code, shape=SHAPE_LINE, operation=annotate_mode, column_pos=column_pos, index=None)
-#     temp_bboxes.pop(list(temp_bboxes.keys())[0])
-#     for key, temp_bbox in zip(temp_bboxes.keys(), temp_bboxes.values()):
-#             x_0, y_0, x_1, y_1 = temp_bbox[0][0], temp_bbox[0][1], temp_bbox[0][0], temp_bbox[0][1]
-#             l_x_0, l_y_0, l_x_1, l_y_1 = x_0 - 28, y_0, x_1 - 2, y_1 + 20
-#             cv2.rectangle(image_w_subcolumns, (l_x_0, l_y_0), (l_x_1, l_y_1), color, -1)
-#             cv2.putText(image_w_subcolumns, str(annotations[key]["index"]).zfill(3), (l_x_0 + 2, l_y_0 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA)
-#             cv2.imshow("image", image_w_subcolumns)
-#             cv2.waitKey(1)
-#     if sc_y_center >= boundary[1][1]:
-#         drawing = False
-#     label_ready = False
-#     return True, image_w_subcolumns, [boundary[0], (boundary[1][0], sc_y_center)], annotate_mode  # outer_boundary already global
-
 def drawOuterBoundary(image, command, last_header, one_column_boundary_set, two_columns_boundary_set, setted_outer_boundary):
     global x_start, y_start, x_end, y_end
     global label_x_start, label_y_start, label_x_end, label_y_end
@@ -1021,14 +877,128 @@ def drawColumnLine(image, boundary):
         cv2.imshow("image", image_w_column_line)
         cv2.waitKey(1)
     return True, image_w_column_line, boundary_left_column, boundary_right_column
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+def SASColumnLineForMaskRegion(event, x, y, flags, param):
+    global x_start, y_start, x_end, y_end
+    global drawing_col_line_mr
+
+    boundary = param[0]
+    x_start, y_start, x_end, y_end = x, boundary[0][1], x, boundary[1][1]
+    if event == cv2.EVENT_LBUTTONUP:
+        drawing_col_line_mr = False
 
 
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
-########################################################################################################################
+
+# T(n) = 2T(n/2) + f(m) for n rows, m entries per row, so T(n) = Theta(nlgn)
+def binSearchForBBOXBoundaries(intensity_type, rows, rows_indices, scan_up):
+    if len(rows) > 1:
+        top_min_pixel_val, top_mpv_row_index = binSearchForBBOXBoundaries(intensity_type, rows[:int(np.ceil(len(rows) / 2))], rows_indices[:int(np.ceil(len(rows) / 2))], scan_up)
+        bott_min_pixel_val, bott_mpv_row_index = binSearchForBBOXBoundaries(intensity_type, rows[int(np.ceil(len(rows) / 2)):], rows_indices[int(np.ceil(len(rows) / 2)):], scan_up)
+        if intensity_type == "black":
+            if top_min_pixel_val < bott_min_pixel_val:
+                return top_min_pixel_val, top_mpv_row_index
+            elif bott_min_pixel_val < top_min_pixel_val:
+                return bott_min_pixel_val, bott_mpv_row_index
+            elif top_min_pixel_val == bott_min_pixel_val:
+                if scan_up:
+                    return top_min_pixel_val, max(top_mpv_row_index, bott_mpv_row_index)
+                else:
+                    return top_min_pixel_val, min(top_mpv_row_index, bott_mpv_row_index)
+        elif intensity_type == "white":
+            if top_min_pixel_val > bott_min_pixel_val:
+                return top_min_pixel_val, top_mpv_row_index
+            elif bott_min_pixel_val > top_min_pixel_val:
+                return bott_min_pixel_val, bott_mpv_row_index
+            elif top_min_pixel_val == bott_min_pixel_val:
+                if scan_up:
+                    return top_min_pixel_val, max(top_mpv_row_index, bott_mpv_row_index)
+                else:
+                    return top_min_pixel_val, min(top_mpv_row_index, bott_mpv_row_index)
+
+    else:
+        return int(min(rows[0])), rows_indices[0]
+
+
+def setBBoxesAutomatically(orig_image, image_w_outer_bnd, boundary, annotate_mode, column_pos):
+    global x_start, y_start, x_end, y_end
+    global drawing_col_line_mr
+    global current_image_index
+    global drawing
+    global label_ready
+
+
+    color = BBOX_COLOR[annotate_mode]
+    cv2.setMouseCallback("image", SASColumnLineForMaskRegion, [boundary])
+    drawing_col_line_mr = True
+    image_w_line = image_w_outer_bnd.copy()
+    while drawing_col_line_mr:
+        image_w_line = image_w_outer_bnd.copy()
+        cv2.line(image_w_line, (x_start, y_start), (x_end, y_end), BLACK, 1)
+        cv2.imshow("image", image_w_line)
+        cv2.waitKey(1)
+    col_line = [(x_start, y_start), (x_end, y_end)]
+    cv2.line(image_w_line, col_line[0], col_line[1], BLACK, 1)
+    cv2.imshow("image", image_w_line)
+    cv2.waitKey(1)
+
+    im_bnd_gray = cv2.cvtColor(orig_image, cv2.COLOR_BGR2GRAY)
+    _, im_thresh_otsu = cv2.threshold(im_bnd_gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    mask_scan_region = im_thresh_otsu[boundary[0][1]:boundary[1][1], boundary[0][0]:x_end]
+    temp_pos_y = binSearchForBBOXBoundaries("black", mask_scan_region, [i for i in range(len(mask_scan_region))], scan_up=False)
+    start_pos_y = binSearchForBBOXBoundaries("white", mask_scan_region[temp_pos_y[1]:], [i for i in range(temp_pos_y[1], len(mask_scan_region))], scan_up=False)
+    top_bbox_y = boundary[0][1]
+    image_w_bboxes = image_w_line.copy()
+    while True:
+        pos_y2 = binSearchForBBOXBoundaries("black", mask_scan_region[start_pos_y[1]:], [i for i in range(start_pos_y[1], len(mask_scan_region))], scan_up=False)
+        if pos_y2[0] >= 240:
+            break
+        upper_scan_region = im_thresh_otsu[boundary[0][1]:boundary[0][1] + pos_y2[1], boundary[0][0]:boundary[1][0]]
+        temp_pos_y = binSearchForBBOXBoundaries("white", upper_scan_region, [i for i in range(len(upper_scan_region))], scan_up=True)
+        pos_y1 = binSearchForBBOXBoundaries("black", upper_scan_region[:temp_pos_y[1]], [i for i in range(len(upper_scan_region[:temp_pos_y[1]]))], scan_up=True)
+        if pos_y1[0] >= 240:
+            break
+        midpoint_y = int((pos_y1[1] + pos_y2[1]) / 2)
+        key = generateCode()
+        bbox = [(boundary[0][0], top_bbox_y), (boundary[1][0], boundary[0][1] + midpoint_y)]
+        bboxes[key] = bbox
+        addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=current_image_index)
+        if IMAGE_TYPE == "Exercises":
+            mask = [(boundary[0][0], top_bbox_y), (col_line[0][0], boundary[0][1] + midpoint_y)]
+            masks[key] = mask
+            im_region = image_w_bboxes[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]]
+            white_rect = np.ones(im_region.shape, dtype=np.uint8) * 150
+            masked_reg = cv2.addWeighted(im_region, 0.5, white_rect, 0.5, 1.0)
+            image_w_bboxes[mask[0][1]:mask[1][1], mask[0][0]:mask[1][0]] = masked_reg
+            cv2.rectangle(image_w_bboxes, mask[0], mask[1], BLACK, 1)
+        if odds_only:
+            current_image_index += 2
+        else:
+            current_image_index += 1
+        cv2.rectangle(image_w_bboxes, bbox[0], bbox[1], color, 1)
+        x_0, y_0, x_1, y_1 = bbox[0][0], bbox[0][1], bbox[0][0], bbox[0][1]
+        l_x_0, l_y_0, l_x_1, l_y_1 = x_0 - 28, y_0, x_1 - 2, y_1 + 20
+        cv2.rectangle(image_w_bboxes, (l_x_0, l_y_0), (l_x_1, l_y_1), color, -1)
+        cv2.putText(image_w_bboxes, str(annotations[key]["index"]).zfill(3), (l_x_0 + 2, l_y_0 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA)
+        cv2.imshow("image", image_w_bboxes)
+        cv2.waitKey(1)
+        top_bbox_y = boundary[0][1] + midpoint_y
+        start_pos_y = binSearchForBBOXBoundaries("white", mask_scan_region[pos_y2[1]:], [i for i in range(pos_y2[1], len(mask_scan_region))], scan_up=False)
+
+    pass
+    pass
+    return True, image_w_bboxes
+
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
+########################################################################################################################################################################################################
 def setSCRowsCoordiates(event, x, y, flags, param):
     global drawing_subcolumns
     global drawing_sc_rows
@@ -1377,7 +1347,7 @@ def scanAndSetBBOXCoordiates(event, x, y, flags, param):
                     avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
                     reg_rows[y + offset] = avg_pixel_val
                     offset+=1
-                    if avg_pixel_val == 255:
+                    if avg_pixel_val >= SCAN_ROW_AVERAGE_COLOR_THRESHOLD:
                         if start == False:
                             row = [y + offset]
                             cont_rows.append(row)
@@ -1425,7 +1395,7 @@ def scanAndSetBBOXCoordiates(event, x, y, flags, param):
                     avg_pixel_val = int(np.floor(np.mean(scan_region[i])))
                     #reg_rows[y + offset] = avg_pixel_val
                     offset += 1
-                    if avg_pixel_val == 255:
+                    if avg_pixel_val >= SCAN_ROW_AVERAGE_COLOR_THRESHOLD:
                         if start == False:
                             row = [y + offset]
                             cont_rows.append(row)
@@ -1775,8 +1745,6 @@ def SASGridRowLines(event, x, y, flags, param):
 
 
 
-
-
 def generateCode():
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=5))
 
@@ -1790,3 +1758,193 @@ def addAnnotation(code, shape, operation, index, grid=False, header=None, append
     annotations[code]["header"] = header
     annotations[code]["append_to_last_saved_image"] = append_to_last_saved_image
     annotations[code]["column_pos"] = column_pos
+
+
+
+# # T(n) = n*f(m) for n rows, m entries per row
+# def search_gs_intensity(intensity_type, mask_scan_region, boundary_top_y, start_pos_y, image_w_outer_bnd, boundary, scan_up):
+#     start = start_pos_y - boundary_top_y
+#     if scan_up is False:
+#         for i in range(start, len(mask_scan_region)):
+#             image_w_search_lines = image_w_outer_bnd.copy()
+#             cv2.line(image_w_search_lines, (boundary[0][0], i + boundary_top_y), (boundary[1][0], i + boundary_top_y), RED, 1)
+#             cv2.imshow("image", image_w_search_lines)
+#             cv2.waitKey(1)
+#             if intensity_type == "white":
+#                 min_pixel_val = int(min(mask_scan_region[i]))
+#                 if min_pixel_val >= 245:
+#                     return i + boundary_top_y
+#             elif intensity_type == "black":
+#                 min_pixel_val = int(min(mask_scan_region[i]))
+#                 if min_pixel_val <= 200:
+#                     return i + boundary_top_y
+#     else:
+#         for i in reversed(range(start)):
+#             image_w_search_lines = image_w_outer_bnd.copy()
+#             cv2.line(image_w_search_lines, (boundary[0][0], i + boundary_top_y), (boundary[1][0], i + boundary_top_y), RED, 1)
+#             cv2.imshow("image", image_w_search_lines)
+#             cv2.waitKey(1)
+#             if intensity_type == "white":
+#                 min_pixel_val = int(min(mask_scan_region[i]))
+#                 if min_pixel_val >= 245:
+#                     return i + boundary_top_y
+#             elif intensity_type == "black":
+#                 min_pixel_val = int(min(mask_scan_region[i]))
+#                 if min_pixel_val <= 200:
+#                     return i + boundary_top_y
+#     return None
+
+
+# def drawSubcolumns(image, boundary, annotate_mode, grid_ordering, column_pos=None):
+#     global sc_x_center, sc_y_center
+#     global drawing_boundary, drawing_subcolumns, drawing, drawing_sc_rows
+#     global x_start, y_start, x_end, y_end
+#     global bboxes
+#     global masks
+#     global current_image_index
+#     global annotations
+#     global label_ready
+#     global header
+#     global mask_x_offset
+#     temp_bboxes = {}
+#     old_image_index = current_image_index
+#     cv2.setMouseCallback("image", scanAndSetSubcolumnsCoordiates, [boundary])
+#     drawing_subcolumns = True
+#     image_w_subcolumns = image.copy()
+#     code = generateCode()
+#     temp_bboxes[code] = [(boundary[0][0], boundary[0][1]), (boundary[1][0], boundary[0][1])]
+#     if annotate_mode == OP_GRID_MODE:
+#         annotate_mode = OP_SIMPLE
+#     x_0, y_0, x_1, y_1 = boundary[0][0], boundary[0][1], boundary[0][0], boundary[0][1]
+#     l_x_0, l_y_0, l_x_1, l_y_1 = x_0 - 28, y_0, x_1 - 2, y_1 + 20
+#     while drawing_subcolumns:
+#         if annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
+#             color = BBOX_COLOR[annotate_mode]
+#         else:
+#             color = RED
+#         image_w_subcolumns = image.copy()
+#         cv2.rectangle(image_w_subcolumns, (l_x_0, l_y_0), (l_x_1, l_y_1), color, -1)
+#         cv2.putText(image_w_subcolumns, "GRID", (l_x_0 + 2, l_y_0 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.30, (255, 255, 255), 1, cv2.LINE_AA)
+#         cv2.rectangle(image_w_subcolumns, temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center), color, 1)
+#         cv2.line(image_w_subcolumns, (sc_x_center, sc_y_center), (sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), color, 1)
+#
+#         mask_x_start, mask_x_end = x_start, x_start + mask_x_offset
+#         im_region_left = image_w_subcolumns[y_start:sc_y_center, mask_x_start:mask_x_end]
+#         im_region_right = image_w_subcolumns[y_start:sc_y_center, sc_x_center:sc_x_center + mask_x_offset]
+#         white_rect = np.ones(im_region_left.shape, dtype=np.uint8) * 150
+#         masked_reg_left = cv2.addWeighted(im_region_left, 0.5, white_rect, 0.5, 1.0)
+#         masked_reg_right = cv2.addWeighted(im_region_right, 0.5, white_rect, 0.5, 1.0)
+#         image_w_subcolumns[y_start:sc_y_center, mask_x_start:mask_x_end] = masked_reg_left
+#         image_w_subcolumns[y_start:sc_y_center, sc_x_center:sc_x_center + mask_x_offset] = masked_reg_right
+#         cv2.rectangle(image_w_subcolumns, (mask_x_start, y_start), (mask_x_end, sc_y_center), color, 1)
+#         cv2.rectangle(image_w_subcolumns, (sc_x_center, y_start), (sc_x_center + mask_x_offset, sc_y_center), color, 1)
+#         cv2.imshow("image", image_w_subcolumns)
+#         cv2.waitKey(1)
+#
+#         if keyboard.is_pressed('ctrl+shift+alt+1'):
+#             time.sleep(0.01)
+#             annotate_mode = OP_SIMPLE
+#         elif keyboard.is_pressed('ctrl+shift+alt+4'):
+#             time.sleep(0.01)
+#             annotate_mode = OP_COMBINE_W_H
+#         # elif keyboard.is_pressed('ctrl+shift+alt+C'):
+#         #     if mask_x_end - 1 > x_start:
+#         #         mask_x_offset -= 1
+#         # elif keyboard.is_pressed('ctrl+shift+alt+G'):
+#         #     if mask_x_end + 1 < sc_x_center:
+#         #         mask_x_offset += 1
+#         if keyboard.is_pressed('esc'):
+#             time.sleep(0.5)
+#             current_image_index = old_image_index
+#             drawing_subcolumns = False
+#             print("Canceled.")
+#             return False, image, None, None
+#     cv2.rectangle(image_w_subcolumns, temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center), color, 2)
+#     cv2.line(image_w_subcolumns, (sc_x_center, sc_y_center), (sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), color, 2)
+#     cv2.imshow("image", image_w_subcolumns)
+#     cv2.waitKey(1)
+#     x_start, y_start, x_end, y_end = 0,0,0,0
+#     drawing_subcolumns = True
+#     drawing_sc_rows = True
+#     if annotate_mode in [OP_SIMPLE, OP_COMBINE_W_H]:
+#         color = BBOX_COLOR[annotate_mode]
+#     else:
+#         color = RED
+#     # cv2.setMouseCallback("image", setSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+#     cv2.setMouseCallback("image", scanAndSetSCRowsCoordiates, [[temp_bboxes[list(temp_bboxes.keys())[-1]][0], (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+#     while drawing_subcolumns:
+#         image_w_sc_rows = image_w_subcolumns.copy()
+#         if drawing_sc_rows is True:
+#             cv2.line(image_w_sc_rows, (x_start, y_start), (x_end, y_end), color, 1)
+#             cv2.imshow("image", image_w_sc_rows)
+#             cv2.waitKey(1)
+#
+#         if drawing_sc_rows is False:
+#             code = generateCode()
+#             temp_bboxes[code] = [(boundary[0][0], temp_bboxes[list(temp_bboxes.keys())[-1]][1][1]), (sc_x_center, y_end)]
+#             code = generateCode()
+#             temp_bboxes[code] = [(sc_x_center, temp_bboxes[list(temp_bboxes.keys())[-1]][0][1]), (boundary[1][0], y_end)]
+#             cv2.line(image_w_sc_rows, (x_start, y_start), (x_end, y_end), color, 2)
+#             cv2.imshow("image", image_w_sc_rows)
+#             cv2.waitKey(1)
+#             image_w_subcolumns = image_w_sc_rows
+#             drawing_sc_rows = True
+#             # cv2.setMouseCallback("image", setSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+#             cv2.setMouseCallback("image", scanAndSetSCRowsCoordiates, [[(x_start, y_start), (temp_bboxes[list(temp_bboxes.keys())[-1]][1][0], sc_y_center)], sc_x_center])
+#
+#         if keyboard.is_pressed('esc'):
+#             time.sleep(0.5)
+#             current_image_index = old_image_index
+#             drawing_subcolumns = False
+#             temp_bboxes = {}
+#             print("Canceled.")
+#             return False, image, None, None
+#     if annotate_mode == OP_COMBINE_W_H:
+#         grid_header = header
+#     else:
+#         grid_header = None
+#     k = int(current_image_index + (len(temp_bboxes) - 1)/2)
+#     for i in range(len(temp_bboxes)):
+#         key = list(temp_bboxes.keys())[i]
+#         temp_bbox = list(temp_bboxes.values())[i]
+#         temp_bbox = list(temp_bboxes.values())[i]
+#         bboxes[key] = temp_bbox
+#         masks[key] = [(mask_x_start, temp_bbox[0][1]), (mask_x_end, temp_bbox[1][1])]
+#         if i != 0:
+#             if grid_ordering == "horizontal":
+#                 addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=current_image_index, grid=True, header=grid_header)
+#                 if odds_only:
+#                     current_image_index += 2
+#                 else:
+#                     current_image_index += 1
+#             elif grid_ordering == "vertical":
+#                 if i % 2 == 1:
+#                     addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=current_image_index, grid=True, header=grid_header)
+#                     if odds_only:
+#                         current_image_index += 2
+#                     else:
+#                         current_image_index += 1
+#                 else:
+#                     addAnnotation(code=key, shape=SHAPE_BBOX, operation=annotate_mode, column_pos=column_pos, index=k, grid=True, header=grid_header)
+#                     k += 1
+#         else:
+#             addAnnotation(code=key, shape=SHAPE_LINE, operation=annotate_mode, column_pos=column_pos, index=None, header=grid_header)
+#     if grid_ordering == "vertical":
+#         current_image_index = k
+#     bboxes.update(temp_bboxes)
+#     code = generateCode()
+#     bboxes[code] = [(boundary[0][0], sc_y_center), (boundary[1][0], sc_y_center)]
+#     addAnnotation(code=code, shape=SHAPE_LINE, operation=annotate_mode, column_pos=column_pos, index=None)
+#     temp_bboxes.pop(list(temp_bboxes.keys())[0])
+#     for key, temp_bbox in zip(temp_bboxes.keys(), temp_bboxes.values()):
+#             x_0, y_0, x_1, y_1 = temp_bbox[0][0], temp_bbox[0][1], temp_bbox[0][0], temp_bbox[0][1]
+#             l_x_0, l_y_0, l_x_1, l_y_1 = x_0 - 28, y_0, x_1 - 2, y_1 + 20
+#             cv2.rectangle(image_w_subcolumns, (l_x_0, l_y_0), (l_x_1, l_y_1), color, -1)
+#             cv2.putText(image_w_subcolumns, str(annotations[key]["index"]).zfill(3), (l_x_0 + 2, l_y_0 + 14), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (255, 255, 255), 1, cv2.LINE_AA)
+#             cv2.imshow("image", image_w_subcolumns)
+#             cv2.waitKey(1)
+#     if sc_y_center >= boundary[1][1]:
+#         drawing = False
+#     label_ready = False
+#     return True, image_w_subcolumns, [boundary[0], (boundary[1][0], sc_y_center)], annotate_mode  # outer_boundary already global
+

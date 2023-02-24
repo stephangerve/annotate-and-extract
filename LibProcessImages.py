@@ -48,77 +48,101 @@ def resetImageList(current_image_index, sets_list, current_set_index, cursor, cn
         SN = sets_list[current_set_index][0][1]
     images = os.listdir(temp_ss_path)
     if IMAGE_TYPE == "Exercises":
+        query = (
+                "SELECT ExerciseID "
+                "FROM exercises "
+                "WHERE TextbookID = '" + textbookid + "' AND ChapterNumber = '" + CN + "' AND SectionNumber = '" + SN + "'"
+        )
+        cursor.execute(query)
+        exist_rows = cursor.fetchall()
+        eids = [entry[0] for entry in exist_rows]
         for image in images:
-            if "M" in image:
-                shutil.move(os.path.join(temp_ss_path, image), os.path.join(sets_list[current_set_index][1]["masked"], image))
+            if ".M.png" in image:
                 m_exercise_path = os.path.join(sets_list[current_set_index][1]["masked"], image)
                 m_exercise_rel_path = " -- ".join(m_exercise_path.split("Exercise Packs\\")[-1].split("\\"))
-            elif "U" in image:
-                shutil.move(os.path.join(temp_ss_path, image), os.path.join(sets_list[current_set_index][1]["unmasked"], image))
-                eid = ".".join(image.split(".")[:-2])
-                EN = int(image.split(".")[2])
+                if OVERWRITE_IMAGE or not os.path.exists(m_exercise_path):
+                    shutil.move(os.path.join(temp_ss_path, image), m_exercise_path)
+            elif ".U.png" in image:
                 u_exercise_path = os.path.join(sets_list[current_set_index][1]["unmasked"], image)
                 u_exercise_rel_path = " -- ".join(u_exercise_path.split("Exercise Packs\\")[-1].split("\\"))
+                if OVERWRITE_IMAGE or not os.path.exists(u_exercise_path):
+                    shutil.move(os.path.join(temp_ss_path, image), u_exercise_path)
+                eid = ".".join(image.split(".")[:-2])
+                EN = int(image.split(".")[2])
                 add_row = (textbookid, eid, CN, SN, EN, None, u_exercise_rel_path, m_exercise_rel_path, None)
-                insert_row_statement = ("INSERT INTO exercises "
-                                        "(TextbookID, ExerciseID, ChapterNumber, SectionNumber, ExerciseNumber, SolutionExists, UnmaskedExercisePath, MaskedExercisePath, SolutionPath)"
-                                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)")
-                cursor.execute(insert_row_statement, add_row)
-                cnx.commit()
-                print("Inserted row: " + str(add_row))
+                if eid not in eids:
+                    insert_row_statement = (
+                        "INSERT INTO exercises "
+                        "(TextbookID, ExerciseID, ChapterNumber, SectionNumber, ExerciseNumber, SolutionExists, UnmaskedExercisePath, MaskedExercisePath, SolutionPath)"
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)"
+
+                    )
+                    cursor.execute(insert_row_statement, add_row)
+                    cnx.commit()
+                    print("Inserted row: " + str(add_row))
+                else:
+                    print("Row already exists: " + str(add_row))
                 m_exercise_rel_path = None
     elif IMAGE_TYPE == "Solutions":
-        query = ("SELECT ExerciseID, ExerciseNumber FROM exercises WHERE TextbookID = '" + textbookid + "' AND ChapterNumber = '" + CN + "' AND SectionNumber = '" + SN + "'")
+        query = (
+                "SELECT ExerciseID, ExerciseNumber, SolutionExists "
+                "FROM exercises "
+                "WHERE TextbookID = '" + textbookid + "' AND ChapterNumber = '" + CN + "' AND SectionNumber = '" + SN + "'"
+        )
         cursor.execute(query)
         exist_rows = cursor.fetchall()
         eids = [entry[0] for entry in exist_rows]
         exercise_numbers = [entry[1] for entry in exist_rows]
-        for eid, EN in zip(eids, exercise_numbers):
+        sol_exists_vals = [eval(entry[2]) if (entry[2] != None and entry[2] != "") else entry[2] for entry in exist_rows]
+        for eid, EN, sol_exists in zip(eids, exercise_numbers, sol_exists_vals):
             sol_image = ".".join([eid, 'S', 'png'])
             if sol_image in images:
-                if OVERWRITE_IMAGE:
+                if OVERWRITE_IMAGE or sol_exists == False or sol_exists == None or sol_exists == "":
                     shutil.move(os.path.join(temp_ss_path, sol_image), os.path.join(sets_list[current_set_index][1], sol_image))
-                    #eid = ".".join(image.split(".")[:-2])
-                    #EN = int(sol_image.split(".")[2])
                     solution_path = os.path.join(sets_list[current_set_index][1], sol_image)
                     solution_rel_path = " -- ".join(solution_path.split("Exercise Packs\\")[-1].split("\\"))
                     update_row = (textbookid, eid, CN, SN, EN, str(True), "*unchanged*", "*unchanged*", solution_rel_path)
-                    update_row_statement = ("UPDATE exercises "
-                                            "SET SolutionExists = 'True',"
-                                            "    SolutionPath = '" + solution_rel_path + "' "
-                                            "WHERE TextbookID = '" + textbookid + "' "
-                                            "AND ExerciseID = '" + eid + "'")
+                    update_row_statement = (
+                            "UPDATE exercises "
+                            "SET SolutionExists = 'True',"
+                            "    SolutionPath = '" + solution_rel_path + "' "
+                            "WHERE TextbookID = '" + textbookid + "' "
+                            "AND ExerciseID = '" + eid + "'"
+                    )
                     cursor.execute(update_row_statement)
                     cnx.commit()
-                    # add_row = (textbookid, eid, CN, SN, EN, str(True), None, None, solution_rel_path)
-                    # insert_row_statement = ("INSERT INTO exercises "
-                    #                         "(TextbookID, ExerciseID, ChapterNumber, SectionNumber, ExerciseNumber, SolutionExists, UnmaskedExercisePath, MaskedExercisePath, SolutionPath)"
-                    #                         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)")
-                    # cursor.execute(insert_row_statement, add_row)
-                    # cnx.commit()
-                    # print("Inserted row: " + str(add_row))
-            else:
+                    print("Updated row: " + str(update_row))
+                elif (OVERWRITE_IMAGE == False and sol_exists != None and sol_exists != "") or sol_exists == True:
+                    shutil.move(os.path.join(temp_ss_path, sol_image), os.path.join(old_ss_path, sol_image))
+                    print("Solution already exist or overwrite is false: " + sol_image)
+            elif sol_exists is None or sol_exists == "":
                 update_row = (textbookid, eid, CN, SN, EN, str(False), "*unchanged*", "*unchanged*", None)
-                update_row_statement = ("UPDATE exercises "
-                                        "SET SolutionExists = 'False' "
-                                        "WHERE TextbookID = '" + textbookid + "' "
-                                        "AND ExerciseID = '" + eid + "'")
+                update_row_statement = (
+                        "UPDATE exercises "
+                        "SET SolutionExists = 'False' "
+                        "WHERE TextbookID = '" + textbookid + "' "
+                        "AND ExerciseID = '" + eid + "'"
+                )
                 cursor.execute(update_row_statement)
                 cnx.commit()
-            print("Updated row: " + str(update_row))
+                print("Updated row: " + str(update_row))
 
     if IMAGE_TYPE == "Exercises":
-        update_row_statement = ("Update sections "
-                                "SET AllExercisesExtracted = 'True' "
-                                "WHERE TextbookID = '" + textbookid + "' "
-                                "AND ChapterNumber = '" + CN + "' "
-                                "AND SectionNumber = '" + SN + "'")
+        update_row_statement = (
+                "Update sections "
+                "SET AllExercisesExtracted = 'True' "
+                "WHERE TextbookID = '" + textbookid + "' "
+                "AND ChapterNumber = '" + CN + "' "
+                "AND SectionNumber = '" + SN + "'"
+        )
     elif IMAGE_TYPE == "Solutions":
-        update_row_statement = ("Update sections "
-                                "SET AllSolutionsExtracted = 'True' "
-                                "WHERE TextbookID = '" + textbookid + "' "
-                                "AND ChapterNumber = '" + CN + "' "
-                                "AND SectionNumber = '" + SN + "'")
+        update_row_statement = (
+                "Update sections "
+                "SET AllSolutionsExtracted = 'True' "
+                "WHERE TextbookID = '" + textbookid + "' "
+                "AND ChapterNumber = '" + CN + "' "
+                "AND SectionNumber = '" + SN + "'"
+        )
     cursor.execute(update_row_statement)
     cnx.commit()
     current_set_index += 1

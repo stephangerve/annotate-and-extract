@@ -53,13 +53,43 @@ def addSetsList(category, textbook_author, textbook_title, textbook_edition, cur
         os.mkdir(os.path.join(e_packs_txtbk_dir, "Solutions Images"))
 
     row_query = "Category = '" + category + "' AND Authors = '" + textbook_author + "' AND Title = '" + textbook_title + "' AND Edition = '" + textbook_edition + "'"
-    query = ("SELECT TextbookID FROM textbooks WHERE " + row_query)
+    query = (
+            "SELECT TextbookID "
+            "FROM textbooks "
+            "WHERE " + row_query
+    )
     cursor.execute(query)
     id = cursor.fetchall()[0][0]
     if IMAGE_TYPE == "Exercises":
-        query = ("SELECT ChapterNumber, SectionNumber FROM sections WHERE TextbookID = '" + id + "' and AllExercisesExtracted = 'False'")
+        if IGNORE_IF_ALREADY_EXTRACTED:
+            query = (
+                    "SELECT ChapterNumber, SectionNumber "
+                    "FROM sections "
+                    "WHERE TextbookID = '" + id + "'"
+            )
+        else:
+            query = (
+                    "SELECT ChapterNumber, SectionNumber "
+                    "FROM sections "
+                    "WHERE TextbookID = '" + id + "' "
+                    "AND AllExercisesExtracted = 'False'"
+            )
     elif IMAGE_TYPE == "Solutions":
-        query = ("SELECT ChapterNumber, SectionNumber FROM sections WHERE TextbookID = '" + id + "' and AllSolutionsExtracted = 'False'")
+        if IGNORE_IF_ALREADY_EXTRACTED:
+            query = (
+                    "SELECT ChapterNumber, SectionNumber "
+                    "FROM sections "
+                    "WHERE TextbookID = '" + id + "' "
+                    "AND ALLExercisesExtracted = 'True'"
+            )
+        else:
+            query = (
+                    "SELECT ChapterNumber, SectionNumber "
+                    "FROM sections "
+                    "WHERE TextbookID = '" + id + "' "
+                    "AND ALLExercisesExtracted = 'True' "
+                    "AND AllSolutionsExtracted = 'False'"
+            )
     cursor.execute(query)
     entries = cursor.fetchall()
     sets_list = [list(entry) for entry in entries]
