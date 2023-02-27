@@ -58,10 +58,11 @@ BBOX_COLOR = {
 COLUMN_LEFT = -0.1
 COLUMN_RIGHT = 0.1
 
-SCAN_RADIUS_BBOX = 30  # default: 20
+SCAN_RADIUS_BBOX = 20  # default: 20
+SCAN_RADIUS_MASK = 15  # default: 20
 SCAN_RADIUS_COL_LINE = 100  # default: 100
-SCAN_RADIUS_GRID_RL = SCAN_RADIUS_BBOX  # default: 20
-SCAN_RADIUS_GRID_COL = 150  # default: 150
+#SCAN_RADIUS_GRID_RL = SCAN_RADIUS_BBOX  # default: 20 ################ OLD stuff
+SCAN_RADIUS_GRID_COL = 20  # default: 150
 
 SCAN_ROW_AVERAGE_COLOR_THRESHOLD = 255 #255 strongest intensity
 
@@ -107,10 +108,10 @@ IMAGE_TYPE = "Exercises"
 # textbook = "Introduction to the Design and Analysis of Algorithms"
 # edition = "2nd"
 
-category = "Algorithms and Data Structures"
-author = "Cormen"
-textbook = "Introduction to Algorithms"
-edition = "4th"
+# category = "Algorithms and Data Structures"
+# author = "Cormen"
+# textbook = "Introduction to Algorithms"
+# edition = "4th"
 
 # category = "Algorithms and Data Structures"
 # author = "Neapolitan"
@@ -205,10 +206,10 @@ edition = "4th"
 # textbook = "Discrete and Combinatorial Mathematics"
 # edition = "5th"
 
-# category = "Calculus"
-# author = "Stewart"
-# textbook = "Calculus Early Transcendentals"
-# edition = "9th"
+category = "Calculus"
+author = "Stewart"
+textbook = "Calculus Early Transcendentals"
+edition = "9th"
 
 # category = "Discrete Mathematics"
 # author = "West"
